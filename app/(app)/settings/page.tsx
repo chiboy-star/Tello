@@ -71,7 +71,8 @@ export default function SettingsPage() {
     queryClient.clear();
     const supabase = createClient();
     await supabase.auth.signOut();
-    router.push('/login');
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+    window.location.assign('/login');
   };
 
   const handleDeleteAccount = async () => {

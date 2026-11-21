@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -10,7 +9,6 @@ import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { BrandLogo } from '@/components/brand-logo';
 
 export default function SignupPage() {
-  const router = useRouter();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -65,8 +63,9 @@ export default function SignupPage() {
 
       if (typeof window !== 'undefined') {
         localStorage.setItem('tallo.returning', 'true');
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+        window.location.assign('/onboarding');
       }
-      router.push('/onboarding');
     } catch {
       setApiError('An unexpected error occurred during signup.');
       setLoading(false);

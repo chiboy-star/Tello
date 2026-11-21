@@ -2,29 +2,89 @@ import { NextRequest, NextResponse } from 'next/server';
 
 function hasValidLocalSession(request: NextRequest): boolean {
   const cookies = request.cookies.getAll();
-  const authCookie = cookies.find((c) => c.name.includes('-auth-token'));
-  if (!authCookie || !authCookie.value) return false;
+  if (!cookies || cookies.length === 0) return false;
 
-  try {
-    let raw = authCookie.value;
-    if (raw.startsWith('base64-')) {
-      raw = Buffer.from(raw.slice(7), 'base64').toString('utf-8');
+  // Collect potential auth cookie prefixes (e.g. sb-<project>-auth-token, supabase-auth-token)
+  const authPrefixes = new Set<string>();
+  for (const c of cookies) {
+    if (c.name.includes('-auth-token') || c.name.includes('access-token') || c.name.startsWith('sb-')) {
+      const base = c.name.replace(/\.\d+$/, '');
+      authPrefixes.add(base);
     }
-    if (raw.startsWith('{') || raw.startsWith('[')) {
-      const parsed = JSON.parse(raw);
-      const token = Array.isArray(parsed) ? parsed[0] : (parsed.access_token || parsed[0]);
-      if (token && typeof token === 'string' && token.includes('.')) {
-        const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString('utf-8'));
-        return typeof payload.exp === 'number' && payload.exp * 1000 > Date.now();
-      }
-    } else if (raw.includes('.')) {
-      const payload = JSON.parse(Buffer.from(raw.split('.')[1], 'base64').toString('utf-8'));
-      return typeof payload.exp === 'number' && payload.exp * 1000 > Date.now();
-    }
-    return true; // Fallback: cookie exists with non-empty auth token
-  } catch {
-    return false;
   }
+
+  for (const base of authPrefixes) {
+    // Reassemble chunked cookies (.0, .1, etc.) or read single cookie
+    const chunks: { index: number; value: string }[] = [];
+    for (const c of cookies) {
+      if (c.name === base) {
+        chunks.push({ index: 0, value: c.value });
+      } else if (c.name.startsWith(`${base}.`)) {
+        const idx = parseInt(c.name.slice(base.length + 1), 10);
+        if (!isNaN(idx)) {
+          chunks.push({ index: idx, value: c.value });
+        }
+      }
+    }
+
+    if (chunks.length === 0) continue;
+    chunks.sort((a, b) => a.index - b.index);
+    const combinedValue = chunks.map((c) => c.value).join('');
+    if (!combinedValue) continue;
+
+    try {
+      let raw = combinedValue;
+      if (raw.startsWith('base64-')) {
+        raw = Buffer.from(raw.slice(7), 'base64').toString('utf-8');
+      }
+
+      if (raw.startsWith('{') || raw.startsWith('[')) {
+        const parsed = JSON.parse(raw);
+        // Supabase SSR session format: array with access_token or object with access_token
+        const token = Array.isArray(parsed)
+          ? typeof parsed[0] === 'string'
+            ? parsed[0]
+            : parsed[0]?.access_token
+          : parsed.access_token || parsed[0];
+
+        if (token && typeof token === 'string' && token.includes('.')) {
+          const parts = token.split('.');
+          if (parts[1]) {
+            const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf-8'));
+            if (typeof payload.exp === 'number') {
+              if (payload.exp * 1000 > Date.now()) {
+                return true;
+              }
+              // Expired session
+              continue;
+            }
+          }
+        }
+      } else if (raw.includes('.')) {
+        const parts = raw.split('.');
+        if (parts[1]) {
+          const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf-8'));
+          if (typeof payload.exp === 'number') {
+            if (payload.exp * 1000 > Date.now()) {
+              return true;
+            }
+            continue;
+          }
+        }
+      }
+
+      // Valid session structure identified
+      if (combinedValue.length > 20) {
+        return true;
+      }
+    } catch {
+      if (combinedValue.length > 30) {
+        return true;
+      }
+    }
+  }
+
+  return false;
 }
 
 export async function proxy(request: NextRequest) {

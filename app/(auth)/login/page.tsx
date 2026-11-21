@@ -1,16 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import { validateNextUrl } from '@/lib/url/validate-next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { BrandLogo } from '@/components/brand-logo';
 
 export default function LoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -42,8 +41,11 @@ export default function LoginPage() {
 
       if (typeof window !== 'undefined') {
         localStorage.setItem('tallo.returning', 'true');
+        const searchParams = new URLSearchParams(window.location.search);
+        const target = validateNextUrl(searchParams.get('next'), '/home');
+        // Full navigation ensures cookies and router cache are completely fresh
+        window.location.assign(target);
       }
-      router.push('/home');
     } catch {
       setErrorMsg('An unexpected error occurred during login.');
       setLoading(false);
