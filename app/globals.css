@@ -186,10 +186,10 @@ p {
    BrandSplash Intro & PWA Cold Launch Animation (Part 1)
    ============================================================ */
 #brand-splash {
-  display: none;
+  display: flex;
 }
-html[data-splash="1"] #brand-splash {
-  display: flex !important;
+html[data-splash="0"] #brand-splash {
+  display: none !important;
 }
 
 /* Base lockup centering */
@@ -355,6 +355,9 @@ html[data-splash="1"] #brand-splash {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  #brand-splash {
+    animation: none !important;
+  }
   .splash-inner-group {
     transform: rotate(0deg) !important;
     animation: none !important;

@@ -9,7 +9,8 @@ interface BrandSplashProps {
 }
 
 export function BrandSplash({ forced }: BrandSplashProps) {
-  const [active, setActive] = useState(false);
+  // Start dismissed as false so HTML is always server-rendered into root layout
+  const [dismissed, setDismissed] = useState(false);
   const [closing, setClosing] = useState(false);
   const [isPwa, setIsPwa] = useState(false);
   const [showProgress, setShowProgress] = useState(false);
@@ -18,11 +19,18 @@ export function BrandSplash({ forced }: BrandSplashProps) {
   const dismissSplash = useCallback(() => {
     setClosing(true);
     setTimeout(() => {
-      setActive(false);
-      delete document.documentElement.dataset.splash;
-      const appRoot = document.getElementById('app-root');
-      if (appRoot) {
-        appRoot.removeAttribute('inert');
+      setDismissed(true);
+      if (typeof document !== 'undefined') {
+        document.documentElement.dataset.splash = '0';
+        const appRoot = document.getElementById('app-root');
+        if (appRoot) {
+          appRoot.removeAttribute('inert');
+        }
+      }
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('tallo.intro.v1', '1');
+        } catch {}
       }
     }, 200);
   }, []);
@@ -35,7 +43,8 @@ export function BrandSplash({ forced }: BrandSplashProps) {
   }, [isPwa, dismissSplash]);
 
   useEffect(() => {
-    // Check if splash should run
+    if (typeof window === 'undefined') return;
+
     const searchParams = new URLSearchParams(window.location.search);
     const splashParam = searchParams.get('splash') === '1' || forced;
     const isStandalone =
@@ -43,9 +52,10 @@ export function BrandSplash({ forced }: BrandSplashProps) {
       // @ts-expect-error iOS Safari standalone detection
       navigator.standalone === true;
 
-    let shouldShow = false;
+    const isDataSplashSet = document.documentElement.dataset.splash === '1';
 
-    if (splashParam) {
+    let shouldShow = false;
+    if (splashParam || isDataSplashSet) {
       shouldShow = true;
     } else if (isStandalone) {
       const pwaCold = !sessionStorage.getItem('tallo.pwa.cold');
@@ -57,16 +67,18 @@ export function BrandSplash({ forced }: BrandSplashProps) {
       const firstVisit = !localStorage.getItem('tallo.intro.v1');
       if (firstVisit) {
         shouldShow = true;
-        localStorage.setItem('tallo.intro.v1', '1');
       }
     }
 
-    if (!shouldShow && document.documentElement.dataset.splash !== '1') {
+    if (!shouldShow) {
+      setDismissed(true);
+      document.documentElement.dataset.splash = '0';
       return;
     }
 
+    // Ensure data-splash is active
+    document.documentElement.dataset.splash = '1';
     setIsPwa(isStandalone);
-    setActive(true);
 
     // Apply inert to background root if present
     const appRoot = document.getElementById('app-root');
@@ -74,7 +86,8 @@ export function BrandSplash({ forced }: BrandSplashProps) {
       appRoot.setAttribute('inert', '');
     }
 
-    const totalDuration = isStandalone ? 1200 : 1900;
+    const isReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const totalDuration = isReducedMotion ? 800 : isStandalone ? 1200 : 1900;
 
     // Show thin progress line if cold PWA launch takes over 2.5s
     const progressTimer = setTimeout(() => {
@@ -101,13 +114,13 @@ export function BrandSplash({ forced }: BrandSplashProps) {
   }, [forced, dismissSplash]);
 
   useEffect(() => {
-    if (!active) return;
+    if (dismissed) return;
     const onKeyDown = () => handleSkip();
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [active, handleSkip]);
+  }, [dismissed, handleSkip]);
 
-  if (!active) return null;
+  if (dismissed) return null;
 
   return (
     <div
@@ -137,58 +150,54 @@ export function BrandSplash({ forced }: BrandSplashProps) {
               className="splash-squircle"
             />
 
-            {/* Inner Rotating Group */}
+            {/* Inner Rotating Group (starts at -90deg, rotates to 0deg) */}
             <g className="splash-inner-group">
-              {/* Four White Strokes (Drop in stacked horizontally, stand upright on rotation) */}
-              <line
-                x1="150"
-                y1="138"
-                x2="150"
-                y2="374"
-                stroke="#FFFFFF"
-                strokeWidth="36"
-                strokeLinecap="round"
+              {/* Four Vertical Tally Marks (Stacked Horizontally during entry) */}
+              <rect
+                x="100"
+                y="96"
+                width="40"
+                height="320"
+                rx="20"
+                fill="#F7F6F2"
                 className="splash-bar splash-bar-1"
               />
-              <line
-                x1="226"
-                y1="138"
-                x2="226"
-                y2="374"
-                stroke="#FFFFFF"
-                strokeWidth="36"
-                strokeLinecap="round"
+              <rect
+                x="184"
+                y="96"
+                width="40"
+                height="320"
+                rx="20"
+                fill="#F7F6F2"
                 className="splash-bar splash-bar-2"
               />
-              <line
-                x1="302"
-                y1="138"
-                x2="302"
-                y2="374"
-                stroke="#FFFFFF"
-                strokeWidth="36"
-                strokeLinecap="round"
+              <rect
+                x="268"
+                y="96"
+                width="40"
+                height="320"
+                rx="20"
+                fill="#F7F6F2"
                 className="splash-bar splash-bar-3"
               />
-              <line
-                x1="378"
-                y1="138"
-                x2="378"
-                y2="374"
-                stroke="#FFFFFF"
-                strokeWidth="36"
-                strokeLinecap="round"
+              <rect
+                x="352"
+                y="96"
+                width="40"
+                height="320"
+                rx="20"
+                fill="#F7F6F2"
                 className="splash-bar splash-bar-4"
               />
 
-              {/* Diagonal Amber Strike */}
+              {/* Amber Diagonal Strike (slashes across stack) */}
               <line
-                x1="112"
-                y1="330"
-                x2="416"
-                y2="182"
+                x1="80"
+                y1="420"
+                x2="432"
+                y2="92"
                 stroke="#F5B83D"
-                strokeWidth="36"
+                strokeWidth="44"
                 strokeLinecap="round"
                 className="splash-strike"
               />
@@ -196,18 +205,22 @@ export function BrandSplash({ forced }: BrandSplashProps) {
           </svg>
         </div>
 
-        {/* Wordmark */}
-        <div className="splash-wordmark overflow-hidden pl-3 sm:pl-4">
-          <span className="font-display text-4xl sm:text-5xl font-extrabold tracking-tight text-[var(--text)]">
+        {/* Wordmark (slides in during mark upright rotation) */}
+        <div className="splash-wordmark-container overflow-hidden pl-4 sm:pl-6">
+          <span className="splash-wordmark block font-display text-4xl sm:text-5xl font-extrabold tracking-tight text-[var(--text)]">
             {BRAND_NAME}
           </span>
         </div>
       </div>
 
-      {/* Progress line if cold PWA launch exceeds 2.5s */}
+      {/* Thin progress line if cold launch stalls > 2.5s */}
       {showProgress && (
-        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 w-32 h-1 bg-[var(--surface-2)] rounded-full overflow-hidden">
-          <div className="h-full bg-[var(--brand)] animate-pulse rounded-full w-full" />
+        <div
+          role="progressbar"
+          aria-label="Starting application"
+          className="absolute bottom-12 left-1/2 -translate-x-1/2 w-48 h-0.5 bg-[var(--border)] overflow-hidden rounded-full"
+        >
+          <div className="splash-progress-bar h-full bg-[var(--brand)] w-full"></div>
         </div>
       )}
     </div>

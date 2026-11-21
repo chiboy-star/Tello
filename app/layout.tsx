@@ -3,6 +3,7 @@ import { Bricolage_Grotesque, Inter } from 'next/font/google';
 import './globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
 import { BrandSplash } from '@/components/brand-splash';
+import { SwLifecycle } from '@/components/sw-lifecycle';
 import { QueryProvider } from '@/components/query-provider';
 
 const bricolage = Bricolage_Grotesque({
@@ -78,6 +79,8 @@ const prePaintInlineScript = `
     
     if (showSplash) {
       document.documentElement.dataset.splash = '1';
+    } else {
+      document.documentElement.dataset.splash = '0';
     }
   } catch (e) {}
 })();
@@ -95,6 +98,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="min-h-full flex flex-col bg-bg text-text selection:bg-brand-soft selection:text-brand">
         <BrandSplash />
+        <SwLifecycle />
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:rounded-md focus:bg-brand focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-on-brand focus:shadow-subtle"
