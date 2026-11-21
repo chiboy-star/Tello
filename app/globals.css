@@ -1,0 +1,371 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bg: #F7F6F2;
+    --surface: #FFFFFF;
+    --surface-2: #EFEDE6;
+    --border: #E2DFD5;
+    --text: #14201B;
+    --text-muted: #5B6760;
+    --brand: #0E7C57;
+    --brand-hover: #0B6647;
+    --brand-soft: #DDF1E8;
+    --on-brand: #FFFFFF;
+    --accent: #F5B83D;
+    --accent-soft: #FDF0D0;
+    --danger: #C8372D;
+    --danger-soft: #FBE4E1;
+    --warning: #B7791F;
+
+    --r-sm: 8px;
+    --r-md: 12px;
+    --r-lg: 16px;
+    --r-xl: 24px;
+
+    /* Base theme compatibility */
+    --background: var(--bg);
+    --foreground: var(--text);
+  }
+
+  .dark {
+    --bg: #0E1512;
+    --surface: #151E1A;
+    --surface-2: #1C2722;
+    --border: #2A3731;
+    --text: #EAF0EC;
+    --text-muted: #9AA9A1;
+    --brand: #3CC38C;
+    --brand-hover: #5ED3A3;
+    --brand-soft: #143A2B;
+    --on-brand: #08140F;
+    --accent: #F5B83D;
+    --accent-soft: #3A2E10;
+    --danger: #F07A70;
+    --danger-soft: #3A1714;
+    --warning: #E5A94B;
+
+    --background: var(--bg);
+    --foreground: var(--text);
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-soft: var(--brand-soft);
+  --color-on-brand: var(--on-brand);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-warning: var(--warning);
+
+  --radius-sm: var(--r-sm);
+  --radius-md: var(--r-md);
+  --radius-lg: var(--r-lg);
+  --radius-xl: var(--r-xl);
+
+  --font-display: var(--font-display), 'Bricolage Grotesque', sans-serif;
+  --font-sans: var(--font-sans), 'Inter', sans-serif;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans), 'Inter', sans-serif;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Balanced headlines & pretty paragraphs (DESIGN.md section 3) */
+h1, h2, h3, h4, h5, h6 {
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+/* Tabular numbers on all money values, quantities, counters, table columns */
+.tabular-nums, table, [data-tabular="true"] {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Balanced headlines and pretty paragraphs */
+h1, h2, h3, h4, h5, h6 {
+  text-wrap: balance;
+  font-family: var(--font-display), 'Bricolage Grotesque', sans-serif;
+  line-height: 1.15;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+/* Continuous corners progressive enhancement */
+@supports (corner-shape: squircle) {
+  .squircle {
+    corner-shape: squircle;
+  }
+}
+
+/* Hit slop utility expanding touch target to at least 44x44px */
+.hit-slop {
+  position: relative;
+}
+.hit-slop::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  min-width: 44px;
+  min-height: 44px;
+  width: 100%;
+  height: 100%;
+}
+
+/* Accessible visible focus ring */
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+/* Safe area utilities */
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.safe-left {
+  padding-left: env(safe-area-inset-left);
+}
+.safe-right {
+  padding-right: env(safe-area-inset-right);
+}
+
+/* Subtle elevation shadow level */
+.shadow-subtle {
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
+}
+
+/* Respect prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Print Stylesheet (Section 5.8) */
+@media print {
+  nav, footer, .no-print, button, [role="tablist"], [role="status"], .sticky {
+    display: none !important;
+  }
+  body {
+    background: #FFFFFF !important;
+    color: #000000 !important;
+  }
+  .print-break-inside-avoid {
+    break-inside: avoid;
+  }
+}
+
+/* ============================================================
+   BrandSplash Intro & PWA Cold Launch Animation (Part 1)
+   ============================================================ */
+#brand-splash {
+  display: none;
+}
+html[data-splash="1"] #brand-splash {
+  display: flex !important;
+}
+
+/* Base lockup centering */
+.splash-lockup {
+  position: relative;
+  will-change: transform, opacity;
+}
+
+.splash-svg {
+  transform-origin: 256px 256px;
+}
+
+/* Squircle entry (0 to 100ms) */
+.splash-squircle {
+  transform-origin: 256px 256px;
+  animation: splash-squircle-in 0.1s ease-out forwards;
+}
+
+@keyframes splash-squircle-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Rotating Inner Group: starts at -90deg so blocks are horizontal bricks */
+.normal-timing .splash-inner-group {
+  transform-origin: 256px 256px;
+  animation: splash-rotate-upright 0.4s cubic-bezier(0.34, 1.4, 0.64, 1) 0.95s forwards;
+  transform: rotate(-90deg);
+}
+
+.pwa-timing .splash-inner-group {
+  transform-origin: 256px 256px;
+  animation: splash-rotate-upright 0.25s cubic-bezier(0.34, 1.4, 0.64, 1) 0.55s forwards;
+  transform: rotate(-90deg);
+}
+
+@keyframes splash-rotate-upright {
+  from {
+    transform: rotate(-90deg);
+  }
+  to {
+    transform: rotate(0deg);
+  }
+}
+
+/* Four White Blocks drop in sequentially (100ms to 700ms) */
+.splash-bar {
+  opacity: 0;
+  transform-origin: center;
+}
+
+.normal-timing .splash-bar-1 {
+  animation: splash-bar-drop 0.18s cubic-bezier(0.2, 0, 0, 1) 0.10s forwards;
+}
+.normal-timing .splash-bar-2 {
+  animation: splash-bar-drop 0.18s cubic-bezier(0.2, 0, 0, 1) 0.22s forwards;
+}
+.normal-timing .splash-bar-3 {
+  animation: splash-bar-drop 0.18s cubic-bezier(0.2, 0, 0, 1) 0.34s forwards;
+}
+.normal-timing .splash-bar-4 {
+  animation: splash-bar-drop 0.18s cubic-bezier(0.2, 0, 0, 1) 0.46s forwards;
+}
+
+.pwa-timing .splash-bar-1 {
+  animation: splash-bar-drop 0.12s cubic-bezier(0.2, 0, 0, 1) 0.06s forwards;
+}
+.pwa-timing .splash-bar-2 {
+  animation: splash-bar-drop 0.12s cubic-bezier(0.2, 0, 0, 1) 0.14s forwards;
+}
+.pwa-timing .splash-bar-3 {
+  animation: splash-bar-drop 0.12s cubic-bezier(0.2, 0, 0, 1) 0.22s forwards;
+}
+.pwa-timing .splash-bar-4 {
+  animation: splash-bar-drop 0.12s cubic-bezier(0.2, 0, 0, 1) 0.30s forwards;
+}
+
+@keyframes splash-bar-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Amber Strike Slashes across (700ms to 950ms) */
+.splash-strike {
+  stroke-dasharray: 400;
+  stroke-dashoffset: 400;
+}
+
+.normal-timing .splash-strike {
+  animation: splash-slash 0.25s ease-out 0.70s forwards;
+}
+
+.pwa-timing .splash-strike {
+  animation: splash-slash 0.15s ease-out 0.40s forwards;
+}
+
+@keyframes splash-slash {
+  from {
+    stroke-dashoffset: 400;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Squircle Nudge on strike impact */
+.normal-timing .splash-squircle {
+  animation: splash-squircle-in 0.1s ease-out forwards, splash-squircle-nudge 0.15s ease-out 0.75s forwards;
+}
+.pwa-timing .splash-squircle {
+  animation: splash-squircle-in 0.08s ease-out forwards, splash-squircle-nudge 0.12s ease-out 0.43s forwards;
+}
+
+@keyframes splash-squircle-nudge {
+  0% { transform: scale(1) translate(0, 0); }
+  50% { transform: scale(1.02) translate(2px, -2px); }
+  100% { transform: scale(1) translate(0, 0); }
+}
+
+/* Wordmark slides in (1000ms to 1500ms) */
+.splash-wordmark {
+  opacity: 0;
+}
+
+.normal-timing .splash-wordmark {
+  animation: splash-wordmark-slide 0.4s cubic-bezier(0.2, 0, 0, 1) 1.00s forwards;
+}
+.pwa-timing .splash-wordmark {
+  animation: splash-wordmark-slide 0.25s cubic-bezier(0.2, 0, 0, 1) 0.60s forwards;
+}
+
+@keyframes splash-wordmark-slide {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Fallback hiding if JS fails (3s cap) */
+@keyframes splash-fallback-hide {
+  0%, 95% { opacity: 1; }
+  100% { opacity: 0; visibility: hidden; pointer-events: none; }
+}
+
+#brand-splash {
+  animation: splash-fallback-hide 3.2s forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .splash-inner-group {
+    transform: rotate(0deg) !important;
+    animation: none !important;
+  }
+  .splash-bar, .splash-squircle, .splash-wordmark {
+    opacity: 1 !important;
+    transform: none !important;
+    animation: none !important;
+  }
+  .splash-strike {
+    stroke-dashoffset: 0 !important;
+    animation: none !important;
+  }
+}
