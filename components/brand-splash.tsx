@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { SPLASH_POLICY } from '@/lib/config';
 
 export const BRAND_NAME = 'Tallo';
 
@@ -29,7 +30,7 @@ export function BrandSplash({ forced }: BrandSplashProps) {
       }
       if (typeof window !== 'undefined') {
         try {
-          localStorage.setItem('tallo.intro.v1', '1');
+          localStorage.setItem(SPLASH_POLICY.hasEverSeenKey, '1');
         } catch {}
       }
     }, 200);
@@ -46,7 +47,8 @@ export function BrandSplash({ forced }: BrandSplashProps) {
     if (typeof window === 'undefined') return;
 
     const searchParams = new URLSearchParams(window.location.search);
-    const splashParam = searchParams.get('splash') === '1' || forced;
+    const hasForce = searchParams.get('splash') === '1' || forced;
+    const hasSuppress = searchParams.get('splash') === '0';
     const isStandalone =
       window.matchMedia('(display-mode: standalone)').matches ||
       // @ts-expect-error iOS Safari standalone detection
@@ -55,18 +57,21 @@ export function BrandSplash({ forced }: BrandSplashProps) {
     const isDataSplashSet = document.documentElement.dataset.splash === '1';
 
     let shouldShow = false;
-    if (splashParam || isDataSplashSet) {
+    if (hasSuppress) {
+      shouldShow = false;
+    } else if (hasForce || isDataSplashSet) {
       shouldShow = true;
-    } else if (isStandalone) {
-      const pwaCold = !sessionStorage.getItem('tallo.pwa.cold');
-      if (pwaCold) {
-        shouldShow = true;
-        sessionStorage.setItem('tallo.pwa.cold', '1');
-      }
+      try {
+        sessionStorage.setItem(SPLASH_POLICY.sessionKey, '1');
+      } catch {}
     } else {
-      const firstVisit = !localStorage.getItem('tallo.intro.v1');
-      if (firstVisit) {
+      const sessionSeen = sessionStorage.getItem(SPLASH_POLICY.sessionKey);
+      if (!sessionSeen) {
         shouldShow = true;
+        try {
+          sessionStorage.setItem(SPLASH_POLICY.sessionKey, '1');
+          localStorage.setItem(SPLASH_POLICY.hasEverSeenKey, '1');
+        } catch {}
       }
     }
 
@@ -87,7 +92,11 @@ export function BrandSplash({ forced }: BrandSplashProps) {
     }
 
     const isReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const totalDuration = isReducedMotion ? 800 : isStandalone ? 1200 : 1900;
+    const totalDuration = isReducedMotion
+      ? SPLASH_POLICY.reducedMotionDurationMs
+      : isStandalone
+      ? SPLASH_POLICY.pwaDurationMs
+      : SPLASH_POLICY.webDurationMs;
 
     // Show thin progress line if cold PWA launch takes over 2.5s
     const progressTimer = setTimeout(() => {
@@ -101,10 +110,10 @@ export function BrandSplash({ forced }: BrandSplashProps) {
     }, totalDuration);
     timerRef.current.push(closeTimer);
 
-    // Hard cap 3.0s
+    // Hard cap 3.5s per spec
     const hardCapTimer = setTimeout(() => {
       dismissSplash();
-    }, 3000);
+    }, SPLASH_POLICY.maxFallbackTimeoutMs);
     timerRef.current.push(hardCapTimer);
 
     const timers = timerRef.current;

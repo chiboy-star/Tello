@@ -14,6 +14,13 @@ export async function setupTestUserSession(page: Page): Promise<TestUser> {
   const name = `E2E Tester ${timestamp}`;
   const password = 'password123';
 
+  // Suppress splash during functional setup
+  await page.context().addInitScript(() => {
+    try {
+      sessionStorage.setItem('tallo.splash.session', '1');
+    } catch {}
+  });
+
   // 1. Visit signup
   await page.goto('/signup');
   await page.locator('#brand-splash').waitFor({ state: 'hidden' }).catch(() => {});

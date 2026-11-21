@@ -37,18 +37,60 @@ export const metadata: Metadata = {
   },
 };
 
+const criticalBackgroundCss = `
+  html {
+    background-color: #F7F6F2;
+    color: #14201B;
+  }
+  html.dark {
+    background-color: #0E1512 !important;
+    color: #EAF0EC !important;
+  }
+  @media (prefers-color-scheme: dark) {
+    html:not(.light) {
+      background-color: #0E1512 !important;
+      color: #EAF0EC !important;
+    }
+  }
+  #brand-splash {
+    background-color: #F7F6F2;
+  }
+  html.dark #brand-splash {
+    background-color: #0E1512 !important;
+  }
+  @media (prefers-color-scheme: dark) {
+    html:not(.light) #brand-splash {
+      background-color: #0E1512 !important;
+    }
+  }
+`;
+
 const prePaintInlineScript = `
 (function() {
   try {
+    // 1. Theme application before first paint (eliminates white flash in dark mode)
+    var savedTheme = localStorage.getItem('theme');
+    var systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    var isDark = savedTheme === 'dark' || (!savedTheme && systemDark);
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+      document.documentElement.classList.remove('light');
+      document.documentElement.style.backgroundColor = '#0E1512';
+    } else {
+      document.documentElement.classList.remove('dark');
+      document.documentElement.classList.add('light');
+      document.documentElement.style.backgroundColor = '#F7F6F2';
+    }
+
     var isStandalone = window.matchMedia('(display-mode: standalone)').matches || ('standalone' in navigator && navigator.standalone === true);
     var isLanding = window.location.pathname === '/';
-    var hasUrlSplash = window.location.search.indexOf('splash=1') !== -1;
+    var search = window.location.search;
+    var hasForceSplash = search.indexOf('splash=1') !== -1;
+    var hasSuppressSplash = search.indexOf('splash=0') !== -1;
     
-    // Check if user has auth cookie
+    // Standalone PWA redirect away from landing page before paint (Part 2)
     var hasAuthCookie = document.cookie.indexOf('-auth-token') !== -1;
     var isReturning = !!localStorage.getItem('tallo.returning');
-    
-    // 1. Standalone PWA redirect away from landing page before paint (Part 2)
     if (isStandalone && isLanding) {
       if (hasAuthCookie) {
         window.location.replace('/home');
@@ -59,21 +101,29 @@ const prePaintInlineScript = `
       }
     }
     
-    // 2. Splash decision before paint (Part 1)
+    // 2. Splash decision before paint (Part 1 Policy Change)
     var showSplash = false;
-    if (hasUrlSplash) {
+    if (hasSuppressSplash) {
+      showSplash = false;
+    } else if (hasForceSplash) {
       showSplash = true;
+      try { sessionStorage.setItem('tallo.splash.session', '1'); } catch(e) {}
     } else if (isStandalone) {
-      var pwaCold = !sessionStorage.getItem('tallo.pwa.cold');
-      if (pwaCold) {
+      // Installed PWA: every cold launch (compact version), same session flag
+      var pwaSession = sessionStorage.getItem('tallo.splash.session');
+      if (!pwaSession) {
         showSplash = true;
-        sessionStorage.setItem('tallo.pwa.cold', '1');
+        try { sessionStorage.setItem('tallo.splash.session', '1'); } catch(e) {}
       }
     } else {
-      var firstWebVisit = !localStorage.getItem('tallo.intro.v1');
-      if (firstWebVisit) {
+      // Web: first page load of every browser session (new tab/window) on whatever route
+      var webSession = sessionStorage.getItem('tallo.splash.session');
+      if (!webSession) {
         showSplash = true;
-        localStorage.setItem('tallo.intro.v1', '1');
+        try {
+          sessionStorage.setItem('tallo.splash.session', '1');
+          localStorage.setItem('tallo.intro.v1', '1');
+        } catch(e) {}
       }
     }
     
@@ -94,6 +144,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={`${bricolage.variable} ${inter.variable} h-full`}
     >
       <head>
+        <meta name="color-scheme" content="light dark" />
+        <style dangerouslySetInnerHTML={{ __html: criticalBackgroundCss }} />
         <script dangerouslySetInnerHTML={{ __html: prePaintInlineScript }} />
       </head>
       <body className="min-h-full flex flex-col bg-bg text-text selection:bg-brand-soft selection:text-brand">

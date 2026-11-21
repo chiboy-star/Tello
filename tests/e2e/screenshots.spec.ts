@@ -96,9 +96,20 @@ test.describe('Design Pass Visual Verification Screenshots', () => {
     }
   });
 
-  test('Capture BrandSplash frame strip at 0, 200, 500, 900, 1300, 1700 ms and screen recording', async ({ browser }) => {
-    test.setTimeout(60000);
+  test('Capture BrandSplash frame strip at 0, 100, 300, 600, 1000, 1500, 2000 ms in dark mode opening /home', async ({ browser }) => {
+    test.setTimeout(90000);
+
+    // 1. Setup authenticated session
+    const setupContext = await browser.newContext();
+    const setupPage = await setupContext.newPage();
+    await setupTestUserSession(setupPage);
+    const storageState = await setupContext.storageState();
+    await setupContext.close();
+
+    // 2. Open fresh context in dark mode without tallo.splash.session
     const context = await browser.newContext({
+      storageState,
+      colorScheme: 'dark',
       viewport: { width: 1280, height: 800 },
       recordVideo: {
         dir: screenshotDir,
@@ -107,13 +118,10 @@ test.describe('Design Pass Visual Verification Screenshots', () => {
     });
 
     const page = await context.newPage();
-    await page.goto('/?splash=1');
+    await page.goto('/home');
 
-    const targetTimes = [0, 200, 500, 900, 1300, 1700];
+    const targetTimes = [0, 100, 300, 600, 1000, 1500, 2000];
     for (const ms of targetTimes) {
-      const filename = `splash-frame-${ms}ms.png`;
-      const outPath = path.join(screenshotDir, filename);
-
       await page.evaluate((targetMs) => {
         document.getAnimations().forEach((anim) => {
           anim.currentTime = targetMs;
@@ -122,7 +130,8 @@ test.describe('Design Pass Visual Verification Screenshots', () => {
       }, ms);
 
       const splash = page.locator('#brand-splash');
-      await splash.screenshot({ path: outPath });
+      await splash.screenshot({ path: path.join(screenshotDir, `splash-dark-home-${ms}ms.png`) });
+      await splash.screenshot({ path: path.join(screenshotDir, `splash-frame-${ms}ms.png`) });
     }
 
     await page.evaluate(() => {
@@ -136,10 +145,9 @@ test.describe('Design Pass Visual Verification Screenshots', () => {
 
     if (video) {
       const videoPath = await video.path();
-      const targetPath = path.join(screenshotDir, 'splash-screen-recording.webm');
       try {
-        if (fs.existsSync(targetPath)) fs.unlinkSync(targetPath);
-        fs.copyFileSync(videoPath, targetPath);
+        fs.copyFileSync(videoPath, path.join(screenshotDir, 'splash-dark-home-recording.webm'));
+        fs.copyFileSync(videoPath, path.join(screenshotDir, 'splash-screen-recording.webm'));
       } catch {}
     }
   });
