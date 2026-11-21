@@ -55,6 +55,16 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ---
 
+## How to feel the real speed
+
+To experience Tallo's true instant navigation speed and offline PWA capabilities:
+```bash
+pnpm build && pnpm start
+```
+In development mode (`pnpm dev`), Next.js compiles every route on-demand on first visit, introducing artificial compile pauses on cold routes. In production mode, all pages, server components, and client bundles are precompiled, and the Serwist service worker is registered and actively precaches the app shell for instant zero-latency tab switching.
+
+---
+
 ## Scripts & Testing
 
 - **Lint:** `pnpm lint`

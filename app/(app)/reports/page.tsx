@@ -23,6 +23,7 @@ import {
 import { ScrollProgress } from '@/components/ui/scroll-progress';
 import { useReport } from '@/lib/query/hooks';
 import { useQueryClient } from '@tanstack/react-query';
+import { ReportsSkeleton } from '@/components/skeletons';
 
 export default function ReportsPage() {
   const [period, setPeriod] = useState<'week' | 'month'>('week');
@@ -194,19 +195,7 @@ ${report.narrative}`;
       </div>
 
       {isLoading && !report ? (
-        <div className="space-y-6">
-          <div className="h-28 skeleton rounded-[var(--r-md)]" />
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <div className="h-24 skeleton rounded-[var(--r-md)]" />
-            <div className="h-24 skeleton rounded-[var(--r-md)]" />
-            <div className="h-24 skeleton rounded-[var(--r-md)]" />
-            <div className="h-24 skeleton rounded-[var(--r-md)]" />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="h-48 skeleton rounded-[var(--r-md)]" />
-            <div className="h-48 skeleton rounded-[var(--r-md)]" />
-          </div>
-        </div>
+        <ReportsSkeleton />
       ) : report && (
         <div className="space-y-6">
           {/* Data Quality Notice */}

@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { formatMoney } from '@/lib/domain/money';
 import { useQueryClient } from '@tanstack/react-query';
 import { useItems, useCustomers, useEntries } from '@/lib/query/hooks';
+import { HomeSkeleton } from '@/components/skeletons';
 
 export default function HomePage() {
   const queryClient = useQueryClient();
@@ -190,23 +191,7 @@ export default function HomePage() {
   }).format(new Date());
 
   if (loading) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div className="space-y-2">
-            <div className="h-7 w-40 skeleton rounded-[var(--r-sm)]"></div>
-            <div className="h-4 w-24 skeleton rounded-[var(--r-sm)]"></div>
-          </div>
-          <div className="h-10 w-28 skeleton rounded-[var(--r-md)]"></div>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="h-24 skeleton rounded-[var(--r-md)]"></div>
-          <div className="h-24 skeleton rounded-[var(--r-md)]"></div>
-          <div className="h-24 skeleton rounded-[var(--r-md)]"></div>
-        </div>
-        <div className="h-44 skeleton rounded-[var(--r-lg)]"></div>
-      </div>
-    );
+    return <HomeSkeleton />;
   }
 
   return (

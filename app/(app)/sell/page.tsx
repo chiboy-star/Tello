@@ -10,6 +10,7 @@ import { SlidingPill } from '@/components/ui/sliding-pill';
 import { useQueryClient } from '@tanstack/react-query';
 import { persistQueryCache } from '@/lib/query/cache-persister';
 import { useItems, useCustomers } from '@/lib/query/hooks';
+import { SellSkeleton } from '@/components/skeletons';
 import {
   Pointer,
   Mic,
@@ -527,13 +528,7 @@ export default function SellPage() {
 
       {/* Loading Skeleton */}
       {loadingItems ? (
-        <div className="space-y-4 animate-pulse">
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-            {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
-              <div key={n} className="h-24 bg-surface-2 rounded-md border border-border"></div>
-            ))}
-          </div>
-        </div>
+        <SellSkeleton />
       ) : (
         <>
           {/* 1. TAP MODE (Default, Fast Path) */}

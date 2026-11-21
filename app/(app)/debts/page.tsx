@@ -8,6 +8,7 @@ import { formatMoney } from '@/lib/domain/money';
 import { Search, Plus, Copy, Check, ChevronRight, Phone } from 'lucide-react';
 import { useCustomers } from '@/lib/query/hooks';
 import { useQueryClient } from '@tanstack/react-query';
+import { DebtsSkeleton } from '@/components/skeletons';
 
 export default function DebtsPage() {
   const queryClient = useQueryClient();
@@ -82,16 +83,7 @@ export default function DebtsPage() {
   );
 
   if (isLoading && !data) {
-    return (
-      <div className="space-y-6">
-        <div className="space-y-2">
-          <div className="h-7 w-48 skeleton rounded-[var(--r-sm)]"></div>
-          <div className="h-4 w-64 skeleton rounded-[var(--r-sm)]"></div>
-        </div>
-        <div className="h-10 skeleton rounded-[var(--r-md)]"></div>
-        <div className="h-72 skeleton rounded-[var(--r-lg)]"></div>
-      </div>
-    );
+    return <DebtsSkeleton />;
   }
 
   return (

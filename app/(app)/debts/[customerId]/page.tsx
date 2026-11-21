@@ -9,6 +9,7 @@ import { formatMoney } from '@/lib/domain/money';
 import { ArrowLeft, Users, Copy, Check, Phone, Clock, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { useCustomer } from '@/lib/query/hooks';
 import { useQueryClient } from '@tanstack/react-query';
+import { DebtsDetailSkeleton } from '@/components/skeletons';
 
 export default function CustomerDebtDetailPage() {
   const params = useParams();
@@ -63,17 +64,7 @@ export default function CustomerDebtDetailPage() {
   };
 
   if (isLoading && !data) {
-    return (
-      <div className="space-y-6">
-        <div className="h-6 w-32 skeleton rounded-[var(--r-sm)]"></div>
-        <div className="h-10 w-48 skeleton rounded-[var(--r-sm)]"></div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="h-32 skeleton rounded-[var(--r-md)]"></div>
-          <div className="h-32 skeleton rounded-[var(--r-md)]"></div>
-        </div>
-        <div className="h-64 skeleton rounded-[var(--r-md)]"></div>
-      </div>
-    );
+    return <DebtsDetailSkeleton />;
   }
 
   if (!customer) {

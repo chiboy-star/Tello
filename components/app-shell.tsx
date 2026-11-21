@@ -21,6 +21,7 @@ import { CommandMenu } from '@/components/command-menu';
 import { InstallPrompt } from '@/components/install-prompt';
 import { SlidingPill } from '@/components/ui/sliding-pill';
 import { getOfflineQueue, flushOfflineQueue } from '@/lib/offline/queue';
+import { getRouteSkeleton } from '@/components/skeletons';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -40,6 +41,35 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setPendingHref(null);
   }, [pathname]);
+
+  // Instant route skeleton check: return true if target query data exists in cache
+  const isRouteCached = useCallback(
+    (href: string) => {
+      if (href === '/home') {
+        return (
+          !!queryClient.getQueryData(['items', 'all']) ||
+          !!queryClient.getQueryData(['entries', 50])
+        );
+      }
+      if (href === '/stock') {
+        return !!queryClient.getQueryData(['items', 'all']);
+      }
+      if (href === '/sell') {
+        return !!queryClient.getQueryData(['items', 'all']);
+      }
+      if (href === '/debts') {
+        return !!queryClient.getQueryData(['customers']);
+      }
+      if (href === '/reports') {
+        return (
+          !!queryClient.getQueryData(['reports', 'week', 0]) ||
+          !!queryClient.getQueryData(['reports', 'month', 0])
+        );
+      }
+      return false;
+    },
+    [queryClient]
+  );
 
   const checkQueue = async () => {
     const queue = await getOfflineQueue();
@@ -404,8 +434,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         id="main-content"
         className="flex-1 px-4 pt-5 pb-28 sm:px-6 sm:py-8 sm:pb-8 mx-auto w-full max-w-[1100px]"
       >
-        <div key={pathname} className="page-enter flex-1">
-          {children}
+        <div
+          key={pendingHref && !isRouteCached(pendingHref) ? `pending-${pendingHref}` : pathname}
+          className="page-enter flex-1"
+        >
+          {pendingHref && !isRouteCached(pendingHref)
+            ? getRouteSkeleton(pendingHref)
+            : children}
         </div>
       </main>
 

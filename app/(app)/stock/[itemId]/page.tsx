@@ -9,6 +9,7 @@ import { formatMoney } from '@/lib/domain/money';
 import { ArrowLeft, Package, Check, RefreshCw, Clock } from 'lucide-react';
 import { useItem, useEntries } from '@/lib/query/hooks';
 import { useQueryClient } from '@tanstack/react-query';
+import { StockDetailSkeleton } from '@/components/skeletons';
 
 export default function ItemDetailPage() {
   const params = useParams();
@@ -68,19 +69,7 @@ export default function ItemDetailPage() {
   };
 
   if (loading) {
-    return (
-      <div className="space-y-6">
-        <div className="h-6 w-32 skeleton rounded-[var(--r-sm)]"></div>
-        <div className="h-10 w-48 skeleton rounded-[var(--r-sm)]"></div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="h-24 skeleton rounded-[var(--r-md)]"></div>
-          <div className="h-24 skeleton rounded-[var(--r-md)]"></div>
-          <div className="h-24 skeleton rounded-[var(--r-md)]"></div>
-          <div className="h-24 skeleton rounded-[var(--r-md)]"></div>
-        </div>
-        <div className="h-64 skeleton rounded-[var(--r-md)]"></div>
-      </div>
-    );
+    return <StockDetailSkeleton />;
   }
 
   if (!item) {
