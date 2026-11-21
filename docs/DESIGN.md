@@ -219,6 +219,7 @@ Grouped sections: Profile, Shop (name, currency, timezone), Appearance (**dark m
 | Spinner | **only while a request is pending** | yes, while pending only |
 | Recording pulse | **only while recording** | yes, while recording only |
 | Splash | once per first visit or PWA cold launch, 2s at most, skippable | no |
+| Install banner | slide-up once, 200ms, hidden standalone/snoozed | no |
 
 Anything not in this table does not animate. In particular: no floating, bobbing, rotating or pulsing decorations; no animated gradients; no auto-playing carousels; no parallax.
 
@@ -265,6 +266,7 @@ Anything not in this table does not animate. In particular: no floating, bobbing
 | Copy button | Debt reminder message, report summary. Shows "Copied" for 2s; falls back to selecting text if the Clipboard API fails. |
 | Print stylesheet | Reports page (section 5.8). |
 | Dark mode toggle | Settings, and a small toggle in the landing header; persists; no flash on load (set theme class before paint). |
+| Install banner & affordances | Bottom on phones above tab bar, bottom-right card on desktop. Appears after splash finishes + 4s on / and /home; persistent actions in landing header, sidebar footer, and Settings. iOS Drawer instructions. 7-day snooze. |
 | Simple cookie banner | Small bottom banner on first visit: one sentence, "OK" button, link to Privacy. The app uses only essential storage; do not add analytics scripts that would require more. |
 | Site search | Command menu search over items and customers; landing page does not need search. |
 | Back-to-top button | Landing, Reports, long Stock list. Appears after ~2 screens of scroll. |

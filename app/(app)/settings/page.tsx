@@ -12,12 +12,14 @@ import { Download, Trash2, LogOut, Loader2, Check, Sun, Moon, Monitor, Store, Pa
 import { createClient } from '@/lib/supabase/client';
 import { clearPersistedQueryCache } from '@/lib/query/cache-persister';
 import { useSettings } from '@/lib/query/hooks';
+import { useInstall } from '@/components/install-provider';
 
 export default function SettingsPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { theme, setTheme } = useTheme();
   const { data: settingsData, isLoading } = useSettings();
+  const { canInstall, install } = useInstall();
   const [fullName, setFullName] = useState('');
   const [shopName, setShopName] = useState('');
   const [currency, setCurrency] = useState('NGN');
@@ -240,6 +242,25 @@ export default function SettingsPage() {
           </button>
         </div>
       </div>
+
+      {/* Install Application */}
+      {canInstall && (
+        <div className="rounded-[var(--r-md)] border border-[var(--border)] bg-[var(--surface)] p-5 sm:p-6 space-y-3">
+          <div className="flex items-center gap-2 pb-3 border-b border-[var(--border)]">
+            <Download className="w-4 h-4 text-[var(--brand)]" />
+            <h2 className="font-display text-sm font-semibold text-[var(--text)]">Install Application</h2>
+          </div>
+          <p className="text-xs text-[var(--text-muted)]">
+            Install Tallo to your home screen or desktop for fast zero-latency access and complete offline recording.
+          </p>
+          <Button
+            onClick={install}
+            className="gap-2 text-xs font-semibold h-9 bg-[var(--brand)] text-[var(--on-brand)] hover:bg-[var(--brand-hover)]"
+          >
+            <Download className="h-4 w-4" /> Install Tallo App
+          </Button>
+        </div>
+      )}
 
       {/* CSV Export */}
       <div className="rounded-[var(--r-md)] border border-[var(--border)] bg-[var(--surface)] p-5 sm:p-6 space-y-3">

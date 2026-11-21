@@ -8,14 +8,17 @@ import {
   ShieldCheck,
   Zap,
   ChevronDown,
-  MessageCircle
+  MessageCircle,
+  Download,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { BrandLogo } from '@/components/brand-logo';
 import { ScrollProgress } from '@/components/ui/scroll-progress';
+import { useInstall } from '@/components/install-provider';
 
 export default function LandingPage() {
   const [cookieDismissed, setCookieDismissed] = useState(true);
+  const { canInstall, install } = useInstall();
 
   useEffect(() => {
     // Capture utm params into localStorage
@@ -69,6 +72,17 @@ export default function LandingPage() {
       <header className="sticky top-0 z-40 flex items-center justify-between border-b border-[var(--border)] bg-[var(--surface)]/95 backdrop-blur px-6 py-3.5">
         <BrandLogo size="md" />
         <div className="flex items-center gap-2.5">
+          {canInstall && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={install}
+              className="hidden sm:inline-flex text-xs font-semibold gap-1.5 border-[var(--brand)]/30 text-[var(--brand)] hover:bg-[var(--brand-soft)]"
+            >
+              <Download className="h-3.5 w-3.5" />
+              Install App
+            </Button>
+          )}
           <Link href="/login">
             <Button variant="ghost" size="sm" className="text-xs font-semibold">
               Log in

@@ -14,19 +14,21 @@ import {
   WifiOff,
   RefreshCw,
   Search,
+  Download,
 } from 'lucide-react';
 import { BrandLogo } from '@/components/brand-logo';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { CommandMenu } from '@/components/command-menu';
-import { InstallPrompt } from '@/components/install-prompt';
 import { SlidingPill } from '@/components/ui/sliding-pill';
 import { getOfflineQueue, flushOfflineQueue } from '@/lib/offline/queue';
 import { getRouteSkeleton } from '@/components/skeletons';
+import { useInstall } from '@/components/install-provider';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { canInstall, install } = useInstall();
 
   const [pendingHref, setPendingHref] = useState<string | null>(null);
   const [offlineCount, setOfflineCount] = useState(0);
@@ -409,6 +411,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
 
         <div className="border-t border-border pt-3 space-y-2">
+          {canInstall && (
+            <button
+              onClick={install}
+              className="flex w-full items-center gap-2 rounded-md border border-[var(--brand)]/30 bg-[var(--brand-soft)]/50 px-2.5 py-1.5 text-xs font-semibold text-[var(--brand)] hover:bg-[var(--brand-soft)] transition-colors hit-slop"
+            >
+              <Download className="h-3.5 w-3.5" />
+              <span>Install App</span>
+            </button>
+          )}
+
           <div className="flex items-center justify-between px-2">
             <span className="text-xs text-text-muted">Appearance</span>
             <ThemeToggle />
@@ -508,8 +520,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Command Menu Modal */}
       <CommandMenu />
-      {/* PWA Install Banner */}
-      <InstallPrompt />
     </div>
   );
 }

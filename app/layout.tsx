@@ -5,6 +5,7 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { BrandSplash } from '@/components/brand-splash';
 import { SwLifecycle } from '@/components/sw-lifecycle';
 import { QueryProvider } from '@/components/query-provider';
+import { InstallProvider } from '@/components/install-provider';
 
 const bricolage = Bricolage_Grotesque({
   variable: '--font-display',
@@ -159,9 +160,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </a>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <QueryProvider>
-            <div id="app-root" className="min-h-full flex flex-col flex-1">
-              {children}
-            </div>
+            <InstallProvider>
+              <div id="app-root" className="min-h-full flex flex-col flex-1">
+                {children}
+              </div>
+            </InstallProvider>
           </QueryProvider>
         </ThemeProvider>
       </body>
