@@ -95,4 +95,52 @@ test.describe('Design Pass Visual Verification Screenshots', () => {
       }
     }
   });
+
+  test('Capture BrandSplash frame strip at 0, 200, 500, 900, 1300, 1700 ms and screen recording', async ({ browser }) => {
+    test.setTimeout(60000);
+    const context = await browser.newContext({
+      viewport: { width: 1280, height: 800 },
+      recordVideo: {
+        dir: screenshotDir,
+        size: { width: 1280, height: 800 },
+      },
+    });
+
+    const page = await context.newPage();
+    await page.goto('/?splash=1');
+
+    const targetTimes = [0, 200, 500, 900, 1300, 1700];
+    for (const ms of targetTimes) {
+      const filename = `splash-frame-${ms}ms.png`;
+      const outPath = path.join(screenshotDir, filename);
+
+      await page.evaluate((targetMs) => {
+        document.getAnimations().forEach((anim) => {
+          anim.currentTime = targetMs;
+          anim.pause();
+        });
+      }, ms);
+
+      const splash = page.locator('#brand-splash');
+      await splash.screenshot({ path: outPath });
+    }
+
+    await page.evaluate(() => {
+      document.getAnimations().forEach((anim) => anim.play());
+    });
+    await page.waitForTimeout(2000);
+
+    const video = page.video();
+    await page.close();
+    await context.close();
+
+    if (video) {
+      const videoPath = await video.path();
+      const targetPath = path.join(screenshotDir, 'splash-screen-recording.webm');
+      try {
+        if (fs.existsSync(targetPath)) fs.unlinkSync(targetPath);
+        fs.copyFileSync(videoPath, targetPath);
+      } catch {}
+    }
+  });
 });

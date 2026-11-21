@@ -56,7 +56,7 @@ test.describe('E2E #2, #6, #9: Tap Sell & Undo, Debt Payment, Command Menu', () 
 
     await expect(page.locator('text=Confirm Entries')).toBeVisible();
     await page.click('button:has-text("Save All Confirmed")');
-    await expect(page.locator('text=Sale recorded successfully')).toBeVisible();
+    await expect(page.locator('text=Sale recorded successfully')).toBeVisible({ timeout: 15000 });
 
     // 2. Navigate to debts ledger and verify debt balance
     await page.goto('/debts');

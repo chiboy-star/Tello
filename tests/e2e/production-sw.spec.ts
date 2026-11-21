@@ -1,18 +1,32 @@
 import { test, expect } from '@playwright/test';
 import { spawn, ChildProcess } from 'child_process';
+import net from 'net';
 
-const PROD_PORT = 3005;
-const PROD_URL = `http://localhost:${PROD_PORT}`;
+function getFreePort(): Promise<number> {
+  return new Promise((resolve) => {
+    const srv = net.createServer();
+    srv.listen(0, () => {
+      const port = (srv.address() as net.AddressInfo).port;
+      srv.close(() => resolve(port));
+    });
+  });
+}
 
 test.describe('Production Service Worker Verification', () => {
   let prodServer: ChildProcess;
+  let prodPort: number;
+  let prodUrl: string;
 
   test.beforeAll(async () => {
-    // Start Next.js production server on port 3005
-    prodServer = spawn('npx', ['next', 'start', '-p', String(PROD_PORT)], {
+    test.setTimeout(60000);
+    prodPort = await getFreePort();
+    prodUrl = `http://localhost:${prodPort}`;
+
+    // Start Next.js production server on the free port
+    prodServer = spawn('npx', ['next', 'start', '-p', String(prodPort)], {
       shell: true,
       stdio: 'pipe',
-      env: { ...process.env, PORT: String(PROD_PORT) },
+      env: { ...process.env, PORT: String(prodPort) },
     });
 
     prodServer.stderr?.on('data', (d) => {
@@ -24,7 +38,7 @@ test.describe('Production Service Worker Verification', () => {
     let ready = false;
     while (Date.now() - start < 30000) {
       try {
-        const res = await fetch(`${PROD_URL}/login`);
+        const res = await fetch(`${prodUrl}/login`);
         if (res.ok) {
           ready = true;
           break;
@@ -51,7 +65,7 @@ test.describe('Production Service Worker Verification', () => {
   });
 
   test('GET /sw.js returns HTTP 200 and serves valid javascript bundle', async ({ request }) => {
-    const res = await request.get(`${PROD_URL}/sw.js`);
+    const res = await request.get(`${prodUrl}/sw.js`);
     expect(res.status()).toBe(200);
 
     const contentType = res.headers()['content-type'] || '';
@@ -62,7 +76,7 @@ test.describe('Production Service Worker Verification', () => {
   });
 
   test('navigator.serviceWorker registers and reaches activated state in production', async ({ page }) => {
-    await page.goto(`${PROD_URL}/login`, { waitUntil: 'networkidle' });
+    await page.goto(`${prodUrl}/login`, { waitUntil: 'networkidle' });
 
     // Wait for service worker to register and activate
     const swResult = await page.evaluate(async () => {

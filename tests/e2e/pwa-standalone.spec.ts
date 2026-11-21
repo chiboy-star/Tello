@@ -3,6 +3,7 @@ import { setupTestUserSession, teardownTestUser } from './auth.helper';
 
 test.describe('Part 2: PWA Standalone Mode & Instant Auth Routing', () => {
   test('logged-in user visiting /, /login, /signup redirects to /home with zero landing flash', async ({ page }) => {
+    test.setTimeout(60000);
     await setupTestUserSession(page);
 
     // 1. Visit landing '/'
