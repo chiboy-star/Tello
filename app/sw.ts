@@ -1,7 +1,14 @@
 /// <reference lib="webworker" />
 import { defaultCache } from '@serwist/next/worker';
 import type { PrecacheEntry, SerwistGlobalConfig } from 'serwist';
-import { Serwist, StaleWhileRevalidate, NetworkOnly } from 'serwist';
+import {
+  Serwist,
+  StaleWhileRevalidate,
+  NetworkOnly,
+  CacheableResponsePlugin,
+  setCacheNameDetails,
+  cacheNames,
+} from 'serwist';
 
 declare global {
   interface WorkerGlobalScope extends SerwistGlobalConfig {
@@ -11,13 +18,35 @@ declare global {
 
 declare const self: ServiceWorkerGlobalScope;
 
+// Bump cache version to v2
+const CACHE_VERSION = 'v2';
+setCacheNameDetails({
+  prefix: 'tallo',
+  suffix: CACHE_VERSION,
+});
+
 const serwist = new Serwist({
   precacheEntries: self.__SW_MANIFEST,
   skipWaiting: true,
   clientsClaim: true,
-  navigationPreload: true,
+  navigationPreload: false,
   runtimeCaching: [
-    // Stale-While-Revalidate for GET read routes per spec
+    // 1. ALL Next.js RSC requests (_rsc parameter) must be NetworkOnly - NEVER cache
+    {
+      matcher: ({ url }: { url: URL }) => url.searchParams.has('_rsc'),
+      handler: new NetworkOnly(),
+    },
+    // 2. Auth, onboarding, and home document navigations must be NetworkOnly - NEVER cache
+    {
+      matcher: ({ url, request }: { url: URL; request: Request }) =>
+        request.mode === 'navigate' &&
+        (url.pathname === '/login' ||
+          url.pathname === '/signup' ||
+          url.pathname === '/onboarding' ||
+          url.pathname === '/home'),
+      handler: new NetworkOnly(),
+    },
+    // 3. Stale-While-Revalidate for GET read routes per spec - NEVER cache non-200 or redirected
     {
       matcher: ({ url }: { url: URL }) =>
         url.pathname === '/api/items' ||
@@ -25,10 +54,15 @@ const serwist = new Serwist({
         url.pathname === '/api/customers' ||
         url.pathname === '/api/reports',
       handler: new StaleWhileRevalidate({
-        cacheName: 'tallo-api-cache',
+        cacheName: `tallo-api-cache-${CACHE_VERSION}`,
+        plugins: [
+          new CacheableResponsePlugin({
+            statuses: [200],
+          }),
+        ],
       }),
     },
-    // Network-only for auth, parsing, and mutating routes
+    // 4. Network-only for mutating, auth, and parse routes
     {
       matcher: ({ url, request }: { url: URL; request: Request }) =>
         request.method !== 'GET' ||
@@ -39,7 +73,25 @@ const serwist = new Serwist({
         url.pathname.startsWith('/api/auth'),
       handler: new NetworkOnly(),
     },
-    ...defaultCache,
+    // Filter defaultCache so it never caches _rsc or auth/home navigations
+    ...defaultCache.map((entry) => ({
+      ...entry,
+      matcher: (options: any) => {
+        const { url, request } = options;
+        if (url && url.searchParams && url.searchParams.has('_rsc')) return false;
+        if (
+          request &&
+          request.mode === 'navigate' &&
+          (url.pathname === '/login' ||
+            url.pathname === '/signup' ||
+            url.pathname === '/onboarding' ||
+            url.pathname === '/home')
+        ) {
+          return false;
+        }
+        return typeof entry.matcher === 'function' ? entry.matcher(options) : true;
+      },
+    })),
   ],
   fallbacks: {
     entries: [
@@ -51,6 +103,24 @@ const serwist = new Serwist({
       },
     ],
   },
+});
+
+// Cleanup outdated caches on activate
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(
+        keys.map((key) => {
+          const expectedValues = Object.values(cacheNames);
+          if (!expectedValues.includes(key) && !key.includes(CACHE_VERSION)) {
+            console.log('[SW] Cleaned outdated cache:', key);
+            return caches.delete(key);
+          }
+          return Promise.resolve(true);
+        })
+      )
+    )
+  );
 });
 
 serwist.addEventListeners();
