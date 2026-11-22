@@ -474,7 +474,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         className="fixed bottom-0 inset-x-0 z-30 flex h-16 items-center justify-around border-t border-border bg-surface/95 px-2 backdrop-blur-xs pb-[env(safe-area-inset-bottom)] sm:hidden"
       >
         <SlidingPill
-          activeId={activeNavHref}
+          activeId={activeNavHref === '/sell' ? '' : activeNavHref}
           containerRef={mobileNavRef}
           pillClassName="bg-[var(--brand-soft)]/60"
         />
@@ -494,13 +494,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 }}
                 onMouseEnter={() => prefetchTab(item.href)}
                 onFocus={() => prefetchTab(item.href)}
-                className="relative z-10 flex -translate-y-2 flex-col items-center justify-center"
+                className="relative z-10 flex -translate-y-2 flex-col items-center justify-center hit-slop"
                 aria-label="Record Sale"
               >
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand text-on-brand shadow-subtle transition-transform active:scale-95">
+                <div
+                  className={`flex h-12 w-12 items-center justify-center rounded-full text-on-brand shadow-subtle transition-all active:scale-95 ${
+                    isActive
+                      ? 'bg-[var(--brand-hover)] ring-4 ring-[var(--brand-soft)] scale-105'
+                      : 'bg-brand'
+                  }`}
+                >
                   <Icon className="h-6 w-6" strokeWidth={2.5} />
                 </div>
-                <span className="mt-0.5 text-[10px] font-semibold text-brand">
+                <span
+                  className={`mt-0.5 text-[10px] font-semibold transition-colors ${
+                    isActive ? 'text-[var(--brand-hover)] underline underline-offset-2' : 'text-brand'
+                  }`}
+                >
                   {item.label}
                 </span>
               </Link>
