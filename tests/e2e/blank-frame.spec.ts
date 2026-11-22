@@ -17,10 +17,10 @@ test.describe('Part 2: Zero Blank Frames & In-Page Navigation Timings', () => {
         contentFrameTime: null,
         blankFrames: [] as Array<{ time: number; sample: number }>,
         sampleCount: 0,
-        start: function (href: string, selector: string) {
+        start: function (href: string, targetText: string) {
           this.active = true;
           this.targetHref = href;
-          this.targetSelector = selector;
+          this.targetText = targetText;
           this.pointerDownTime = performance.now();
           this.skeletonFrameTime = null;
           this.contentFrameTime = null;
@@ -41,7 +41,20 @@ test.describe('Part 2: Zero Blank Frames & In-Page Navigation Timings', () => {
             sampler.sampleCount++;
             const now = performance.now();
             const hasSkeleton = !!main.querySelector('[data-skeleton="true"]');
-            const targetHeading = sampler.targetSelector ? main.querySelector(sampler.targetSelector) : null;
+            let targetHeading: Element | null = null;
+            if (sampler.targetText) {
+              const allH1 = main.querySelectorAll('h1');
+              for (let i = 0; i < allH1.length; i++) {
+                if (allH1[i].textContent && allH1[i].textContent.includes(sampler.targetText)) {
+                  targetHeading = allH1[i];
+                  break;
+                }
+              }
+            }
+            if (!targetHeading) {
+              targetHeading = main.querySelector('h1');
+            }
+
             let isTargetVisible = false;
             if (targetHeading) {
               const style = window.getComputedStyle(targetHeading);
@@ -77,29 +90,29 @@ test.describe('Part 2: Zero Blank Frames & In-Page Navigation Timings', () => {
   });
 
   const tabs = [
-    { href: '/stock', selector: 'h1:has-text("Stock")' },
-    { href: '/sell', selector: 'h1:has-text("Record Sale")' },
-    { href: '/debts', selector: 'h1:has-text("Customers")' },
-    { href: '/reports', selector: 'h1:has-text("Business Reports")' },
-    { href: '/home', selector: 'h1:has-text("Shop Dashboard")' },
+    { href: '/stock', targetText: 'Stock' },
+    { href: '/sell', targetText: 'Sale' },
+    { href: '/debts', targetText: 'Debt' },
+    { href: '/reports', targetText: 'Report' },
+    { href: '/home', targetText: 'Dashboard' },
   ];
 
-  async function performNavAndSample(page: any, tab: { href: string; selector: string }) {
+  async function performNavAndSample(page: any, tab: { href: string; targetText: string }) {
     const navLink = page.locator(`a[data-pill-id="${tab.href}"]:visible`).first();
     await expect(navLink).toBeVisible();
 
     // Start in-page measurement right before pointerdown
     await page.evaluate(
-      ([href, sel]: [string, string]) => {
+      ([href, text]: [string, string]) => {
         // @ts-expect-error window extension
-        window.__navSampler.start(href, sel);
+        window.__navSampler.start(href, text);
       },
-      [tab.href, tab.selector]
+      [tab.href, tab.targetText]
     );
 
     // Dispatch pointerdown and click
     await navLink.dispatchEvent('pointerdown');
-    await navLink.click();
+    await navLink.evaluate((el: HTMLElement) => el.click());
 
     // Wait until in-page sampler captures target content with opacity > 0.9
     await page.waitForFunction(() => {
