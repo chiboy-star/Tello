@@ -35,6 +35,14 @@ const InstallContext = createContext<InstallContextType | null>(null);
 const SNOOZE_KEY = 'tallo.install.snooze';
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
+let cachedPromptEvent: BeforeInstallPromptEvent | null = null;
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    cachedPromptEvent = e as BeforeInstallPromptEvent;
+  });
+}
+
 export function InstallProvider({ children }: { children: React.ReactNode }) {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [canInstall, setCanInstall] = useState(false);
@@ -70,16 +78,24 @@ export function InstallProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    if (cachedPromptEvent) {
+      setDeferredPrompt(cachedPromptEvent);
+      setPlatform('chromium');
+      setCanInstall(true);
+    }
+
     // Capture beforeinstallprompt
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       const promptEvent = e as BeforeInstallPromptEvent;
+      cachedPromptEvent = promptEvent;
       setDeferredPrompt(promptEvent);
       setPlatform('chromium');
       setCanInstall(true);
     };
 
     const handleAppInstalled = () => {
+      cachedPromptEvent = null;
       setInstalled(true);
       setCanInstall(false);
       setDeferredPrompt(null);

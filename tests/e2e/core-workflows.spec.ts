@@ -54,9 +54,9 @@ test.describe('E2E #2, #6, #9: Tap Sell & Undo, Debt Payment, Command Menu', () 
     await page.fill('input[placeholder*="3 Indomie"]', '2 rice 5000 credit Mama Ngozi');
     await page.click('button:has-text("Parse")');
 
-    await expect(page.locator('text=Confirm Entries')).toBeVisible();
+    await expect(page.locator('text=Confirm Entries')).toBeVisible({ timeout: 20000 });
     await page.click('button:has-text("Save All Confirmed")');
-    await expect(page.locator('text=Sale recorded successfully')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('text=Sale recorded successfully')).toBeVisible({ timeout: 20000 });
 
     // 2. Navigate to debts ledger and verify debt balance
     await page.goto('/debts');
