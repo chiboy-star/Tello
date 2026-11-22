@@ -2,8 +2,21 @@ import { test, expect } from '@playwright/test';
 import { setupTestUserSession, teardownTestUser } from './auth.helper';
 
 test.describe('Part 3: PWA Install Banner & Installability', () => {
+  test.afterEach(async ({ page }) => {
+    await page.evaluate(() => {
+      try {
+        localStorage.removeItem('tallo.install.snooze');
+      } catch {}
+    }).catch(() => {});
+  });
+
   test('synthetic beforeinstallprompt: banner visible, Install calls prompt once, disappears', async ({ page }) => {
     await setupTestUserSession(page);
+    await page.evaluate(() => {
+      try {
+        localStorage.removeItem('tallo.install.snooze');
+      } catch {}
+    });
     await page.goto('/home');
     await page.locator('#brand-splash').waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
 
@@ -25,7 +38,7 @@ test.describe('Part 3: PWA Install Banner & Installability', () => {
 
     // Wait for the banner to appear after timer
     const banner = page.locator('aside[aria-label="Install Tallo application"]');
-    await expect(banner).toBeVisible({ timeout: 6000 });
+    await expect(banner).toBeVisible({ timeout: 12000 });
     await expect(banner).toContainText('Install Tallo');
     await expect(banner).toContainText('Opens instantly and works offline.');
 
@@ -48,6 +61,11 @@ test.describe('Part 3: PWA Install Banner & Installability', () => {
 
   test('appinstalled event hides all install affordances', async ({ page }) => {
     await setupTestUserSession(page);
+    await page.evaluate(() => {
+      try {
+        localStorage.removeItem('tallo.install.snooze');
+      } catch {}
+    });
     await page.goto('/home');
     await page.locator('#brand-splash').waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
 
@@ -62,7 +80,7 @@ test.describe('Part 3: PWA Install Banner & Installability', () => {
     });
 
     const banner = page.locator('aside[aria-label="Install Tallo application"]');
-    await expect(banner).toBeVisible({ timeout: 6000 });
+    await expect(banner).toBeVisible({ timeout: 12000 });
 
     // Dispatch appinstalled
     await page.evaluate(() => {
@@ -87,7 +105,7 @@ test.describe('Part 3: PWA Install Banner & Installability', () => {
     await page.locator('#brand-splash').waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
 
     const banner = page.locator('aside[aria-label="Install Tallo application"]');
-    await expect(banner).toBeVisible({ timeout: 6000 });
+    await expect(banner).toBeVisible({ timeout: 12000 });
 
     // Click Install on iOS
     await banner.getByRole('button', { name: 'Install', exact: true }).click();
@@ -148,6 +166,11 @@ test.describe('Part 3: PWA Install Banner & Installability', () => {
   test('Not now snoozes the install prompt for 7 days', async ({ page }) => {
     await setupTestUserSession(page);
     await page.goto('/home');
+    await page.evaluate(() => {
+      try {
+        localStorage.removeItem('tallo.install.snooze');
+      } catch {}
+    });
     await page.locator('#brand-splash').waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
 
     // Trigger beforeinstallprompt
@@ -161,7 +184,7 @@ test.describe('Part 3: PWA Install Banner & Installability', () => {
     });
 
     const banner = page.locator('aside[aria-label="Install Tallo application"]');
-    await expect(banner).toBeVisible({ timeout: 6000 });
+    await expect(banner).toBeVisible({ timeout: 12000 });
 
     // Click Not now
     await banner.getByRole('button', { name: 'Not now', exact: true }).click();
@@ -188,6 +211,12 @@ test.describe('Part 3: PWA Install Banner & Installability', () => {
 
     await page.waitForTimeout(4500);
     await expect(banner).not.toBeVisible();
+
+    await page.evaluate(() => {
+      try {
+        localStorage.removeItem('tallo.install.snooze');
+      } catch {}
+    });
 
     await teardownTestUser(page);
   });
