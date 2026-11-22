@@ -27,7 +27,8 @@ export const SPLASH_POLICY = {
    * Animation durations in milliseconds.
    */
   webDurationMs: 1900,
-  pwaDurationMs: 1200,
-  reducedMotionDurationMs: 800,
-  maxFallbackTimeoutMs: 3500,
+  pwaDurationMs: 1100,
+  reducedMotionDurationMs: 0,
+  maxSafetyTimeoutMs: 8000,
+  maxFallbackTimeoutMs: 8000,
 } as const;

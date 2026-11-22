@@ -2,18 +2,31 @@ import { describe, it, expect } from 'vitest';
 import { CATALOG_ITEMS, getCatalogItemById } from '@/lib/catalog/catalog.data';
 
 describe('Catalog Reference Prices & Prefill Logic', () => {
-  it('all catalog items have valid reference prices and metadata', () => {
+  it('catalog items have valid structure and verified reference prices with null for unverified', () => {
     expect(CATALOG_ITEMS.length).toBe(75);
+
+    let pricedCount = 0;
+    let nullCount = 0;
 
     for (const item of CATALOG_ITEMS) {
       expect(item.name.trim().length).toBeGreaterThan(0);
       expect(item.category).toBeTruthy();
       expect(item.unit).toBeTruthy();
-      expect(typeof item.refPrice).toBe('number');
-      expect(item.refPrice).toBeGreaterThan(0);
-      expect(item.refPriceSource).toBeTruthy();
-      expect(['high', 'medium']).toContain(item.refPriceConfidence);
+
+      if (item.refPrice !== null) {
+        pricedCount++;
+        expect(typeof item.refPrice).toBe('number');
+        expect(item.refPrice).toBeGreaterThan(0);
+        expect(item.refPriceSource).toBeTruthy();
+        expect(['high', 'medium', 'low']).toContain(item.refPriceConfidence);
+      } else {
+        nullCount++;
+        expect(item.refPrice).toBeNull();
+      }
     }
+
+    expect(pricedCount).toBe(18);
+    expect(nullCount).toBe(57);
   });
 
   it('getCatalogItemById retrieves reference prices accurately', () => {
