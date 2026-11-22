@@ -165,12 +165,12 @@ test.describe('Part 3: PWA Install Banner & Installability', () => {
 
   test('Not now snoozes the install prompt for 7 days', async ({ page }) => {
     await setupTestUserSession(page);
-    await page.goto('/home');
     await page.evaluate(() => {
       try {
         localStorage.removeItem('tallo.install.snooze');
       } catch {}
     });
+    await page.goto('/home');
     await page.locator('#brand-splash').waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
 
     // Trigger beforeinstallprompt
