@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { BrandLogo } from '@/components/brand-logo';
 import { ScrollProgress } from '@/components/ui/scroll-progress';
 import { useInstall } from '@/components/install-provider';
+import { signalAppReady } from '@/components/app-ready';
 
 export default function LandingPage() {
   const [cookieDismissed, setCookieDismissed] = useState(true);
@@ -38,6 +39,7 @@ export default function LandingPage() {
 
       const dismissed = localStorage.getItem('tallo_cookie_dismissed');
       if (!dismissed) setCookieDismissed(false);
+      signalAppReady();
     }
   }, []);
 

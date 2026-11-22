@@ -24,6 +24,7 @@ import { SlidingPill } from '@/components/ui/sliding-pill';
 import { getOfflineQueue, flushOfflineQueue } from '@/lib/offline/queue';
 import { getRouteSkeleton } from '@/components/skeletons';
 import { useInstall } from '@/components/install-provider';
+import { signalAppReady } from '@/components/app-ready';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -111,6 +112,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     window.addEventListener('tallo-queue-updated', checkQueue);
 
     const interval = setInterval(checkQueue, 2000);
+    signalAppReady();
 
     return () => {
       window.removeEventListener('online', handleOnline);

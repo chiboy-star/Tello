@@ -1,4 +1,4 @@
-import { test } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 import { setupTestUserSession } from './auth.helper';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -96,8 +96,14 @@ test.describe('Design Pass Visual Verification Screenshots', () => {
     }
   });
 
-  test('Capture BrandSplash frame strip at 0, 100, 300, 600, 1000, 1500, 2000 ms in dark mode opening /home', async ({ browser }) => {
+  test('Capture BrandSplash frame strip at 0, 100, 300, 600, 1000, 1500, 2000 ms in dark mode opening /home', async ({ browser }, testInfo) => {
     test.setTimeout(90000);
+
+    // Only run this screenshot generation on Desktop project to avoid duplicate redundant work
+    if (testInfo.project.name === 'Mobile') {
+      test.skip();
+      return;
+    }
 
     // 1. Setup authenticated session
     const setupContext = await browser.newContext();
@@ -106,7 +112,7 @@ test.describe('Design Pass Visual Verification Screenshots', () => {
     const storageState = await setupContext.storageState();
     await setupContext.close();
 
-    // 2. Open fresh context in dark mode without tallo.splash.session
+    // 2. Open fresh context in dark mode with splash forced
     const context = await browser.newContext({
       storageState,
       colorScheme: 'dark',
@@ -118,7 +124,14 @@ test.describe('Design Pass Visual Verification Screenshots', () => {
     });
 
     const page = await context.newPage();
-    await page.goto('/home');
+    // Delay app-ready in this test so the splash stays mounted and animated while taking the frame strip
+    await page.addInitScript(() => {
+      // @ts-expect-error test hook
+      window.__TALLO_DELAY_APP_READY_MS = 10000;
+    });
+    await page.goto('/home?splash=1');
+    const splash = page.locator('#brand-splash');
+    await expect(splash).toBeVisible({ timeout: 10000 });
 
     const targetTimes = [0, 100, 300, 600, 1000, 1500, 2000];
     for (const ms of targetTimes) {
@@ -129,9 +142,8 @@ test.describe('Design Pass Visual Verification Screenshots', () => {
         });
       }, ms);
 
-      const splash = page.locator('#brand-splash');
-      await splash.screenshot({ path: path.join(screenshotDir, `splash-dark-home-${ms}ms.png`) });
-      await splash.screenshot({ path: path.join(screenshotDir, `splash-frame-${ms}ms.png`) });
+      await page.screenshot({ path: path.join(screenshotDir, `splash-dark-home-${ms}ms.png`) });
+      await page.screenshot({ path: path.join(screenshotDir, `splash-frame-${ms}ms.png`) });
     }
 
     await page.evaluate(() => {

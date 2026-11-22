@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { SPLASH_POLICY } from '@/lib/config';
+import { isAppReady } from '@/components/app-ready';
 
 export const BRAND_NAME = 'Tallo';
 
@@ -10,15 +11,22 @@ interface BrandSplashProps {
 }
 
 export function BrandSplash({ forced }: BrandSplashProps) {
-  // Start dismissed as false so HTML is always server-rendered into root layout
   const [dismissed, setDismissed] = useState(false);
   const [closing, setClosing] = useState(false);
   const [isPwa, setIsPwa] = useState(false);
-  const [showProgress, setShowProgress] = useState(false);
+  const [isLooping, setIsLooping] = useState(false);
+  const [isReducedMotion, setIsReducedMotion] = useState(false);
+
+  const introDoneRef = useRef(false);
+  const appReadyRef = useRef(false);
+  const closingRef = useRef(false);
   const timerRef = useRef<NodeJS.Timeout[]>([]);
 
   const dismissSplash = useCallback(() => {
+    if (closingRef.current) return;
+    closingRef.current = true;
     setClosing(true);
+
     setTimeout(() => {
       setDismissed(true);
       if (typeof document !== 'undefined') {
@@ -37,7 +45,6 @@ export function BrandSplash({ forced }: BrandSplashProps) {
   }, []);
 
   const handleSkip = useCallback(() => {
-    // Skippable on first web visit (or presentation)
     if (!isPwa) {
       dismissSplash();
     }
@@ -53,6 +60,10 @@ export function BrandSplash({ forced }: BrandSplashProps) {
       window.matchMedia('(display-mode: standalone)').matches ||
       // @ts-expect-error iOS Safari standalone detection
       navigator.standalone === true;
+
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    setIsReducedMotion(reducedMotion);
+    setIsPwa(isStandalone);
 
     const isDataSplashSet = document.documentElement.dataset.splash === '1';
 
@@ -81,43 +92,64 @@ export function BrandSplash({ forced }: BrandSplashProps) {
       return;
     }
 
-    // Ensure data-splash is active
+    // Mark active in DOM
     document.documentElement.dataset.splash = '1';
-    setIsPwa(isStandalone);
 
-    // Apply inert to background root if present
     const appRoot = document.getElementById('app-root');
     if (appRoot) {
       appRoot.setAttribute('inert', '');
     }
 
-    const isReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const totalDuration = isReducedMotion
-      ? SPLASH_POLICY.reducedMotionDurationMs
+    // Minimum intro duration
+    const introDuration = reducedMotion
+      ? 0
       : isStandalone
-      ? SPLASH_POLICY.pwaDurationMs
-      : SPLASH_POLICY.webDurationMs;
+      ? SPLASH_POLICY.pwaDurationMs // 1100ms
+      : SPLASH_POLICY.webDurationMs; // 1900ms
 
-    // Show thin progress line if cold PWA launch takes over 2.5s
-    const progressTimer = setTimeout(() => {
-      setShowProgress(true);
-    }, 2500);
-    timerRef.current.push(progressTimer);
+    // Check if app already signaled ready before splash mounted
+    if (isAppReady()) {
+      appReadyRef.current = true;
+    }
 
-    // Dismissal timer
-    const closeTimer = setTimeout(() => {
-      dismissSplash();
-    }, totalDuration);
-    timerRef.current.push(closeTimer);
+    const checkReadyAndDismiss = () => {
+      if (closingRef.current) return;
+      if (introDoneRef.current && appReadyRef.current) {
+        dismissSplash();
+      } else if (introDoneRef.current && !appReadyRef.current) {
+        if (!reducedMotion) {
+          setIsLooping(true);
+        }
+      }
+    };
 
-    // Hard cap 3.5s per spec
-    const hardCapTimer = setTimeout(() => {
-      dismissSplash();
-    }, SPLASH_POLICY.maxFallbackTimeoutMs);
-    timerRef.current.push(hardCapTimer);
+    // Listen for custom app-ready signal
+    const onAppReady = () => {
+      appReadyRef.current = true;
+      checkReadyAndDismiss();
+    };
+
+    window.addEventListener('tallo:app-ready', onAppReady);
+
+    // Timer 1: Minimum intro choreography time
+    const introTimer = setTimeout(() => {
+      introDoneRef.current = true;
+      checkReadyAndDismiss();
+    }, introDuration);
+    timerRef.current.push(introTimer);
+
+    // Timer 2: 8s safety cap
+    const safetyCapTimer = setTimeout(() => {
+      if (!closingRef.current) {
+        console.warn('[BrandSplash] Safety cap 8s reached before app ready signal. Fading splash.');
+        dismissSplash();
+      }
+    }, SPLASH_POLICY.maxSafetyTimeoutMs);
+    timerRef.current.push(safetyCapTimer);
 
     const timers = timerRef.current;
     return () => {
+      window.removeEventListener('tallo:app-ready', onAppReady);
       timers.forEach(clearTimeout);
     };
   }, [forced, dismissSplash]);
@@ -139,7 +171,9 @@ export function BrandSplash({ forced }: BrandSplashProps) {
       onClick={handleSkip}
       className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-[var(--bg)] transition-opacity duration-200 select-none ${
         closing ? 'opacity-0 pointer-events-none' : 'opacity-100'
-      } ${isPwa ? 'pwa-timing' : 'normal-timing'}`}
+      } ${isPwa ? 'pwa-timing' : 'normal-timing'} ${isLooping ? 'splash-looping' : ''} ${
+        isReducedMotion ? 'reduced-motion' : ''
+      }`}
     >
       <div className="splash-lockup flex items-center justify-center">
         {/* Tally Mark Icon Container */}
@@ -161,7 +195,7 @@ export function BrandSplash({ forced }: BrandSplashProps) {
 
             {/* Inner Rotating Group (starts at -90deg, rotates to 0deg) */}
             <g className="splash-inner-group">
-              {/* Four Vertical Tally Marks (Stacked Horizontally during entry) */}
+              {/* Four Vertical Tally Marks */}
               <rect
                 x="100"
                 y="96"
@@ -221,17 +255,6 @@ export function BrandSplash({ forced }: BrandSplashProps) {
           </span>
         </div>
       </div>
-
-      {/* Thin progress line if cold launch stalls > 2.5s */}
-      {showProgress && (
-        <div
-          role="progressbar"
-          aria-label="Starting application"
-          className="absolute bottom-12 left-1/2 -translate-x-1/2 w-48 h-0.5 bg-[var(--border)] overflow-hidden rounded-full"
-        >
-          <div className="splash-progress-bar h-full bg-[var(--brand)] w-full"></div>
-        </div>
-      )}
     </div>
   );
 }
