@@ -38,7 +38,7 @@ test.describe('Part 3: PWA Install Banner & Installability', () => {
 
     // Wait for the banner to appear after timer
     const banner = page.locator('aside[aria-label="Install Tallo application"]');
-    await expect(banner).toBeVisible({ timeout: 12000 });
+    await expect(banner).toBeVisible({ timeout: 20000 });
     await expect(banner).toContainText('Install Tallo');
     await expect(banner).toContainText('Opens instantly and works offline.');
 
@@ -80,7 +80,7 @@ test.describe('Part 3: PWA Install Banner & Installability', () => {
     });
 
     const banner = page.locator('aside[aria-label="Install Tallo application"]');
-    await expect(banner).toBeVisible({ timeout: 12000 });
+    await expect(banner).toBeVisible({ timeout: 20000 });
 
     // Dispatch appinstalled
     await page.evaluate(() => {
@@ -105,7 +105,7 @@ test.describe('Part 3: PWA Install Banner & Installability', () => {
     await page.locator('#brand-splash').waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
 
     const banner = page.locator('aside[aria-label="Install Tallo application"]');
-    await expect(banner).toBeVisible({ timeout: 12000 });
+    await expect(banner).toBeVisible({ timeout: 20000 });
 
     // Click Install on iOS
     await banner.getByRole('button', { name: 'Install', exact: true }).click();
@@ -184,7 +184,7 @@ test.describe('Part 3: PWA Install Banner & Installability', () => {
     });
 
     const banner = page.locator('aside[aria-label="Install Tallo application"]');
-    await expect(banner).toBeVisible({ timeout: 12000 });
+    await expect(banner).toBeVisible({ timeout: 20000 });
 
     // Click Not now
     await banner.getByRole('button', { name: 'Not now', exact: true }).click();

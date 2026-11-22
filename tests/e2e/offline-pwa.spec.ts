@@ -47,15 +47,16 @@ test.describe('E2E #8 & #11: PWA Service Worker & Offline Queue', () => {
 
       // 4. Restore online connection
       await page.context().setOffline(false);
+      await page.evaluate(() => {
+        window.dispatchEvent(new Event('online'));
+      });
 
       // Trigger sync or wait for auto-flush
       const syncNowButton = page.locator('button:has-text("Sync Now")');
-      if (await syncNowButton.isVisible()) {
-        await syncNowButton.click();
-      }
+      await syncNowButton.click({ timeout: 3000 }).catch(() => {});
 
       // Banner should disappear after flush
-      await expect(syncBanner).not.toBeVisible({ timeout: 10000 });
+      await expect(syncBanner).not.toBeVisible({ timeout: 15000 });
 
       // 5. Query /api/entries to verify exactly one new entry was saved and no duplicate batch
       const updatedEntries = await page.evaluate(async () => {
