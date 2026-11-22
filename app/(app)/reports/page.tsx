@@ -24,6 +24,7 @@ import { ScrollProgress } from '@/components/ui/scroll-progress';
 import { useReport } from '@/lib/query/hooks';
 import { useQueryClient } from '@tanstack/react-query';
 import { ReportsSkeleton } from '@/components/skeletons';
+import { SectionRetryCard } from '@/components/ui/section-retry-card';
 
 export default function ReportsPage() {
   const [period, setPeriod] = useState<'week' | 'month'>('week');
@@ -31,7 +32,11 @@ export default function ReportsPage() {
   const reportsToggleRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
 
-  const { data: report, isLoading } = useReport(period, periodOffset);
+  const { data: report, isLoading, error: reportError, refetch } = useReport(period, periodOffset);
+
+  if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('crash') === '1') {
+    throw new Error('Simulated test client crash');
+  }
   const [copied, setCopied] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -196,6 +201,12 @@ ${report.narrative}`;
 
       {isLoading && !report ? (
         <ReportsSkeleton />
+      ) : reportError && !report ? (
+        <SectionRetryCard
+          title="Could not load reports"
+          message="Failed to load your business report facts. Check your connection and try again."
+          onRetry={() => refetch()}
+        />
       ) : report && (
         <div className="space-y-6">
           {/* Data Quality Notice */}
@@ -209,25 +220,33 @@ ${report.narrative}`;
           )}
 
           {/* 1. AI Narrative Box */}
-          <section
-            aria-labelledby="narrative-heading"
-            className="rounded-[var(--r-md)] border border-[var(--border)] bg-[var(--surface)] p-5 space-y-2"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-[var(--brand)]">
-                <Sparkles className="w-3.5 h-3.5" />
-                <span id="narrative-heading">
-                  Performance Narrative ({report.narrativeSource === 'llm' ? 'AI Generated' : 'Template'})
+          {report.narrative ? (
+            <section
+              aria-labelledby="narrative-heading"
+              className="rounded-[var(--r-md)] border border-[var(--border)] bg-[var(--surface)] p-5 space-y-2"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-[var(--brand)]">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span id="narrative-heading">
+                    Performance Narrative ({report.narrativeSource === 'llm' ? 'AI Generated' : 'Template'})
+                  </span>
+                </div>
+                <span className="text-[11px] text-[var(--text-muted)]">
+                  {facts?.periodStart} to {facts?.periodEnd}
                 </span>
               </div>
-              <span className="text-[11px] text-[var(--text-muted)]">
-                {facts?.periodStart} to {facts?.periodEnd}
-              </span>
-            </div>
-            <p className="text-sm text-[var(--text)] leading-relaxed font-medium">
-              {report.narrative}
-            </p>
-          </section>
+              <p className="text-sm text-[var(--text)] leading-relaxed font-medium">
+                {report.narrative}
+              </p>
+            </section>
+          ) : (
+            <SectionRetryCard
+              title="Summary narrative unavailable"
+              message="The performance summary narrative could not be generated. Click retry to regenerate."
+              onRetry={handleRegenerate}
+            />
+          )}
 
           {/* 2. KPI Row */}
           <section aria-labelledby="kpi-heading">
@@ -332,7 +351,7 @@ ${report.narrative}`;
                     <div>
                       <div className="font-medium text-[var(--text)]">{item.name}</div>
                       <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
-                        {item.currentQty} on hand • {item.velocityUnitsPerDay.toFixed(1)}/day
+                        {item.currentQty} on hand • {(item.velocityUnitsPerDay ?? 0).toFixed(1)}/day
                       </div>
                     </div>
                     <span className="text-[11px] font-medium text-[var(--text-muted)]">Hold reorders</span>

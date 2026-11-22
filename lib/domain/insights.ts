@@ -70,6 +70,7 @@ export interface ReportFacts {
     name: string;
     status: string;
     currentQty: number;
+    velocityUnitsPerDay: number;
   }>;
   debts: {
     totalOutstandingMinor: number;
@@ -272,6 +273,7 @@ export function computeReportFacts(params: {
       name: itemLookup.get(f.itemId) || 'Item',
       status: f.status,
       currentQty: f.currentQty,
+      velocityUnitsPerDay: f.avgDaily,
     }));
 
   // Debts calculation across all ledger history

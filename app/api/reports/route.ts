@@ -22,7 +22,7 @@ export const GET = withAuth(async (req: NextRequest, { user, supabase }) => {
     .eq('user_id', user.id)
     .eq('period', period)
     .eq('period_start', range.startDateString)
-    .single();
+    .maybeSingle();
 
   if (cached) {
     const generatedAt = new Date(cached.generated_at).getTime();

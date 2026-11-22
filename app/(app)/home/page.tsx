@@ -19,12 +19,13 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useItems, useCustomers, useEntries, useChecklist } from '@/lib/query/hooks';
 import { HomeSkeleton } from '@/components/skeletons';
 import { PriceSheet } from '@/components/price-sheet';
+import { SectionRetryCard } from '@/components/ui/section-retry-card';
 
 export default function HomePage() {
   const queryClient = useQueryClient();
-  const { data: itemsData, isLoading: itemsLoading, isFetching: itemsFetching } = useItems('all');
-  const { data: custData, isLoading: custLoading, isFetching: custFetching } = useCustomers();
-  const { data: entriesData, isLoading: entriesLoading, isFetching: entriesFetching } = useEntries(50);
+  const { data: itemsData, isLoading: itemsLoading, isFetching: itemsFetching, error: itemsError, refetch: refetchItems } = useItems('all');
+  const { data: custData, isLoading: custLoading, isFetching: custFetching, error: custError, refetch: refetchCust } = useCustomers();
+  const { data: entriesData, isLoading: entriesLoading, isFetching: entriesFetching, error: entriesError, refetch: refetchEntries } = useEntries(50);
   const { data: checklistData } = useChecklist();
 
   const items = useMemo(() => itemsData?.items || [], [itemsData]);
@@ -455,44 +456,53 @@ export default function HomePage() {
               </Link>
             </div>
 
-            <div className="divide-y divide-[var(--border)]">
-              {runningLow.map((item: any) => {
-                const days = item.forecast?.daysLeft ?? 0;
-                const isOut = item.current_qty <= 0;
-                return (
-                  <div key={item.id} className="py-2.5 flex items-center justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="font-medium text-xs text-[var(--text)] truncate">{item.name}</div>
-                      <div className="flex items-center gap-2 mt-1">
-                        {/* Thin meter */}
-                        <div className="w-16 h-1 rounded-full bg-[var(--surface-2)] overflow-hidden">
-                          <div
-                            className={`h-full ${isOut ? 'bg-[var(--danger)]' : 'bg-[var(--warning)]'}`}
-                            style={{ width: `${Math.min(100, Math.max(8, days * 14))}%` }}
-                          />
+            {itemsError ? (
+              <SectionRetryCard
+                title="Could not load stock data"
+                message="Failed to fetch low stock alerts."
+                onRetry={() => refetchItems()}
+                className="my-2"
+              />
+            ) : (
+              <div className="divide-y divide-[var(--border)]">
+                {runningLow.map((item: any) => {
+                  const days = item.forecast?.daysLeft ?? 0;
+                  const isOut = item.current_qty <= 0;
+                  return (
+                    <div key={item.id} className="py-2.5 flex items-center justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="font-medium text-xs text-[var(--text)] truncate">{item.name}</div>
+                        <div className="flex items-center gap-2 mt-1">
+                          {/* Thin meter */}
+                          <div className="w-16 h-1 rounded-full bg-[var(--surface-2)] overflow-hidden">
+                            <div
+                              className={`h-full ${isOut ? 'bg-[var(--danger)]' : 'bg-[var(--warning)]'}`}
+                              style={{ width: `${Math.min(100, Math.max(8, days * 14))}%` }}
+                            />
+                          </div>
+                          <span className="text-[11px] text-[var(--text-muted)] tabular-nums">
+                            {item.current_qty} {item.unit}
+                          </span>
                         </div>
-                        <span className="text-[11px] text-[var(--text-muted)] tabular-nums">
-                          {item.current_qty} {item.unit}
-                        </span>
+                      </div>
+                      <div>
+                        {isOut ? (
+                          <span className="badge badge-out">Out</span>
+                        ) : (
+                          <span className="badge badge-low">{days}d left</span>
+                        )}
                       </div>
                     </div>
-                    <div>
-                      {isOut ? (
-                        <span className="badge badge-out">Out</span>
-                      ) : (
-                        <span className="badge badge-low">{days}d left</span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
 
-              {runningLow.length === 0 && (
-                <div className="py-8 text-center text-xs text-[var(--text-muted)]">
-                  All items are well stocked.
-                </div>
-              )}
-            </div>
+                {runningLow.length === 0 && (
+                  <div className="py-8 text-center text-xs text-[var(--text-muted)]">
+                    All items are well stocked.
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="pt-3 border-t border-[var(--border)] mt-2">
@@ -526,35 +536,44 @@ export default function HomePage() {
               </Link>
             </div>
 
-            <div className="divide-y divide-[var(--border)]">
-              {topDebtors.map((cust: any) => (
-                <div key={cust.id} className="py-2.5 flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <Link
-                      href={`/debts/${cust.id}`}
-                      className="font-medium text-xs text-[var(--text)] hover:text-[var(--brand)] truncate block"
-                    >
-                      {cust.name}
-                    </Link>
-                    <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
-                      {cust.phone || 'No phone recorded'}
+            {custError ? (
+              <SectionRetryCard
+                title="Could not load customer balances"
+                message="Failed to fetch debtor records."
+                onRetry={() => refetchCust()}
+                className="my-2"
+              />
+            ) : (
+              <div className="divide-y divide-[var(--border)]">
+                {topDebtors.map((cust: any) => (
+                  <div key={cust.id} className="py-2.5 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <Link
+                        href={`/debts/${cust.id}`}
+                        className="font-medium text-xs text-[var(--text)] hover:text-[var(--brand)] truncate block"
+                      >
+                        {cust.name}
+                      </Link>
+                      <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                        {cust.phone || 'No phone recorded'}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-display font-semibold text-xs text-[var(--accent)] tabular-nums">
+                        {formatMoney(cust.balanceMinor)}
+                      </div>
+                      <span className="badge badge-owes mt-0.5">Owes</span>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="font-display font-semibold text-xs text-[var(--accent)] tabular-nums">
-                      {formatMoney(cust.balanceMinor)}
-                    </div>
-                    <span className="badge badge-owes mt-0.5">Owes</span>
-                  </div>
-                </div>
-              ))}
+                ))}
 
-              {topDebtors.length === 0 && (
-                <div className="py-8 text-center text-xs text-[var(--text-muted)]">
-                  No outstanding customer balances.
-                </div>
-              )}
-            </div>
+                {topDebtors.length === 0 && (
+                  <div className="py-8 text-center text-xs text-[var(--text-muted)]">
+                    No outstanding customer balances.
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="pt-3 border-t border-[var(--border)] mt-2">

@@ -9,12 +9,13 @@ import { Search, ChevronRight, Plus, Sparkles, Package } from 'lucide-react';
 import { useItems } from '@/lib/query/hooks';
 import { useQueryClient } from '@tanstack/react-query';
 import { StockSkeleton } from '@/components/skeletons';
+import { SectionRetryCard } from '@/components/ui/section-retry-card';
 
 export default function StockPage() {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'low' | 'out'>('all');
   const queryClient = useQueryClient();
-  const { data, isLoading } = useItems(filter);
+  const { data, isLoading, error: stockError, refetch } = useItems(filter);
   const items = data?.items || [];
 
   // Adjust stock modal
@@ -126,7 +127,14 @@ export default function StockPage() {
       </div>
 
       {/* Inventory List / Table */}
-      <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--r-md)] overflow-hidden">
+      {stockError && items.length === 0 ? (
+        <SectionRetryCard
+          title="Could not load stock items"
+          message="Failed to load inventory. Please check your connection and try again."
+          onRetry={() => refetch()}
+        />
+      ) : (
+        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--r-md)] overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="bg-[var(--surface-2)]/50 border-b border-[var(--border)] text-[var(--text-muted)] font-medium">
@@ -237,6 +245,7 @@ export default function StockPage() {
           </table>
         </div>
       </div>
+      )}
 
       {/* Adjust Stock Dialog */}
       {adjustingItem && (
