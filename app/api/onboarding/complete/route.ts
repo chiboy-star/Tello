@@ -3,6 +3,7 @@ import { withAuth } from '@/lib/api/withAuth';
 import { apiError } from '@/lib/api/errors';
 import { z } from 'zod';
 import { toMinor } from '@/lib/domain/money';
+import { CATALOG_ITEMS } from '@/lib/catalog/catalog.data';
 
 const OnboardingItemSchema = z.object({
   catalogItemId: z.string().optional(),
@@ -51,29 +52,60 @@ export const POST = withAuth(async (req: NextRequest, { user, supabase }) => {
       return apiError('INTERNAL', 'Failed to update profile settings', 500);
     }
 
-    // 2. Fetch existing items for user to prevent duplicates
-    const { data: existingItems } = await supabase
-      .from('items')
-      .select('name')
-      .eq('user_id', user.id)
-      .is('archived_at', null);
+    // 2. Fetch existing items and user currency to prevent duplicates and enable NGN prefill
+    const [itemsRes, profileRes] = await Promise.all([
+      supabase
+        .from('items')
+        .select('name')
+        .eq('user_id', user.id)
+        .is('archived_at', null),
+      supabase
+        .from('profiles')
+        .select('currency')
+        .eq('id', user.id)
+        .maybeSingle(),
+    ]);
 
-    const existingNames = new Set((existingItems || []).map((i: any) => i.name.toLowerCase()));
+    const isNgn = (profileRes.data?.currency || 'NGN') === 'NGN';
+    const existingNames = new Set((itemsRes.data || []).map((i: any) => i.name.toLowerCase()));
 
     const newRows = items
       .filter((item) => !existingNames.has(item.name.toLowerCase()))
-      .map((item) => ({
-        user_id: user.id,
-        name: item.name,
-        unit: item.unit || 'piece',
-        sell_price_minor: item.sellPrice !== undefined && item.sellPrice !== null ? toMinor(item.sellPrice) : null,
-        cost_price_minor: item.costPrice !== undefined && item.costPrice !== null ? toMinor(item.costPrice) : null,
-        current_qty: item.startingQty ?? 0,
-        updated_at: new Date().toISOString(),
-      }));
+      .map((item) => {
+        let sellPriceMinor: number | null = null;
+        let sellPriceSource: 'estimate' | 'user' | null = null;
+
+        if (item.sellPrice !== undefined && item.sellPrice !== null) {
+          sellPriceMinor = toMinor(item.sellPrice);
+          sellPriceSource = 'user';
+        } else if (isNgn) {
+          const match = CATALOG_ITEMS.find((c) => c.name.toLowerCase() === item.name.toLowerCase());
+          if (match && match.refPrice !== null) {
+            sellPriceMinor = toMinor(match.refPrice);
+            sellPriceSource = 'estimate';
+          }
+        }
+
+        return {
+          user_id: user.id,
+          name: item.name,
+          unit: item.unit || 'piece',
+          sell_price_minor: sellPriceMinor,
+          cost_price_minor: item.costPrice !== undefined && item.costPrice !== null ? toMinor(item.costPrice) : null,
+          sell_price_source: sellPriceSource,
+          current_qty: item.startingQty ?? 0,
+          updated_at: new Date().toISOString(),
+        };
+      });
 
     if (newRows.length > 0) {
-      const { error: itemsError } = await supabase.from('items').insert(newRows);
+      let { error: itemsError } = await supabase.from('items').insert(newRows);
+      if (itemsError && itemsError.code === 'PGRST204') {
+        // Graceful fallback if sell_price_source column is not yet migrated in remote Supabase
+        const fallbackRows = newRows.map(({ sell_price_source: _, ...rest }) => rest);
+        const retry = await supabase.from('items').insert(fallbackRows);
+        itemsError = retry.error;
+      }
       if (itemsError) {
         console.error('Failed to insert onboarding items:', itemsError);
         return apiError('INTERNAL', 'Failed to save items', 500);

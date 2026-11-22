@@ -19,6 +19,7 @@ import {
 import { BrandLogo } from '@/components/brand-logo';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { CommandMenu } from '@/components/command-menu';
+import { AddItemDrawer } from '@/components/add-item-drawer';
 import { SlidingPill } from '@/components/ui/sliding-pill';
 import { getOfflineQueue, flushOfflineQueue } from '@/lib/offline/queue';
 import { getRouteSkeleton } from '@/components/skeletons';
@@ -31,6 +32,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { canInstall, install } = useInstall();
 
   const [pendingHref, setPendingHref] = useState<string | null>(null);
+  const [addItemOpen, setAddItemOpen] = useState(false);
   const [offlineCount, setOfflineCount] = useState(0);
   const [isOnline, setIsOnline] = useState(true);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -43,6 +45,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setPendingHref(null);
   }, [pathname]);
+
+  // Global listener for Add Item drawer
+  useEffect(() => {
+    const handleOpenAddItem = () => setAddItemOpen(true);
+    window.addEventListener('tallo-open-add-item', handleOpenAddItem);
+    return () => window.removeEventListener('tallo-open-add-item', handleOpenAddItem);
+  }, []);
 
   // Instant route skeleton check: return true if target query data exists in cache
   const isRouteCached = useCallback(
@@ -520,6 +529,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Command Menu Modal */}
       <CommandMenu />
+
+      {/* Global Add Item Drawer */}
+      <AddItemDrawer open={addItemOpen} onOpenChange={setAddItemOpen} />
     </div>
   );
 }

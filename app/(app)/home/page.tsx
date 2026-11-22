@@ -18,6 +18,7 @@ import { formatMoney } from '@/lib/domain/money';
 import { useQueryClient } from '@tanstack/react-query';
 import { useItems, useCustomers, useEntries } from '@/lib/query/hooks';
 import { HomeSkeleton } from '@/components/skeletons';
+import { PriceSheet } from '@/components/price-sheet';
 
 export default function HomePage() {
   const queryClient = useQueryClient();
@@ -40,6 +41,10 @@ export default function HomePage() {
   const [undoMessage, setUndoMessage] = useState<string | null>(null);
   const [undoTimeout, setUndoTimeout] = useState<NodeJS.Timeout | null>(null);
   const [sellingItemId, setSellingItemId] = useState<string | null>(null);
+
+  // Set Price Drawer
+  const [priceSheetItem, setPriceSheetItem] = useState<any | null>(null);
+  const [priceSheetOpen, setPriceSheetOpen] = useState(false);
 
   const loadDashboard = useCallback(async (_showSpinner?: boolean) => {
     await Promise.all([
@@ -97,12 +102,14 @@ export default function HomePage() {
   // Quick sell items (top 4 items)
   const quickSellItems = items.slice(0, 4);
 
-  // Setup checklist items
+  // Setup checklist items with price review and add item actions
+  const hasEstimates = items.some((i: any) => i.sell_price_source === 'estimate');
   const checklist = [
-    { label: 'Add at least 5 items', done: items.length >= 5 },
-    { label: 'Log your first sale', done: entries.some((e: any) => e.type === 'sale') },
-    { label: 'Try voice or photo entry', done: entries.some((e: any) => e.source === 'voice' || e.source === 'image') },
-    { label: 'Add a customer record', done: customers.length > 0 },
+    { label: 'Add at least 5 items', done: items.length >= 5, action: 'add-item' },
+    { label: 'Review your prices', done: !hasEstimates, href: '/stock/prices' },
+    { label: 'Log your first sale', done: entries.some((e: any) => e.type === 'sale'), href: '/sell' },
+    { label: 'Try voice or photo entry', done: entries.some((e: any) => e.source === 'voice' || e.source === 'image'), href: '/sell' },
+    { label: 'Add a customer record', done: customers.length > 0, href: '/debts' },
   ];
   const completedCount = checklist.filter((c) => c.done).length;
   const isChecklistComplete = checklist.every((c) => c.done);
@@ -311,27 +318,44 @@ export default function HomePage() {
           </div>
 
           <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            {checklist.map((item, idx) => (
-              <div
-                key={idx}
-                className={`flex items-center gap-2.5 px-3 py-2 rounded-[var(--r-sm)] border text-xs font-medium transition-colors ${
-                  item.done
-                    ? 'border-[var(--border)] bg-[var(--surface-2)]/40 text-[var(--text-muted)]'
-                    : 'border-[var(--border)] bg-[var(--surface)] text-[var(--text)]'
-                }`}
-              >
+            {checklist.map((item, idx) => {
+              const content = (
                 <div
-                  className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 ${
+                  className={`flex items-center gap-2.5 px-3 py-2 rounded-[var(--r-sm)] border text-xs font-medium transition-colors ${
                     item.done
-                      ? 'bg-[var(--brand)] text-[var(--on-brand)]'
-                      : 'border border-[var(--border)] text-transparent'
+                      ? 'border-[var(--border)] bg-[var(--surface-2)]/40 text-[var(--text-muted)]'
+                      : 'border-[var(--border)] bg-[var(--surface)] text-[var(--text)] hover:bg-[var(--surface-2)] cursor-pointer'
                   }`}
                 >
-                  <Check className="w-2.5 h-2.5 stroke-[3]" />
+                  <div
+                    className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 ${
+                      item.done
+                        ? 'bg-[var(--brand)] text-[var(--on-brand)]'
+                        : 'border border-[var(--border)] text-transparent'
+                    }`}
+                  >
+                    <Check className="w-2.5 h-2.5 stroke-[3]" />
+                  </div>
+                  <span className={item.done ? 'line-through opacity-70' : ''}>{item.label}</span>
                 </div>
-                <span className={item.done ? 'line-through opacity-70' : ''}>{item.label}</span>
-              </div>
-            ))}
+              );
+
+              if (item.action === 'add-item') {
+                return (
+                  <div key={idx} onClick={() => window.dispatchEvent(new CustomEvent('tallo-open-add-item'))}>
+                    {content}
+                  </div>
+                );
+              }
+              if (item.href) {
+                return (
+                  <Link key={idx} href={item.href}>
+                    {content}
+                  </Link>
+                );
+              }
+              return <div key={idx}>{content}</div>;
+            })}
           </div>
         </section>
       )}
@@ -353,29 +377,50 @@ export default function HomePage() {
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-            {quickSellItems.map((item: any) => (
-              <button
-                key={item.id}
-                onClick={() => handleQuickSell(item)}
-                disabled={sellingItemId === item.id || item.current_qty <= 0}
-                className="p-3 rounded-[var(--r-md)] border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--surface-2)] active:scale-[0.97] transition-all text-left flex flex-col justify-between min-h-[88px] disabled:opacity-50 disabled:pointer-events-none hit-slop"
-              >
-                <div>
-                  <div className="font-medium text-xs text-[var(--text)] line-clamp-1">{item.name}</div>
-                  <div className="text-[11px] text-[var(--text-muted)] mt-0.5 tabular-nums">
-                    {item.current_qty} {item.unit} left
+            {quickSellItems.map((item: any) => {
+              const hasPrice = item.sell_price_minor !== null && item.sell_price_minor > 0;
+
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    if (!hasPrice) {
+                      setPriceSheetItem(item);
+                      setPriceSheetOpen(true);
+                    } else {
+                      handleQuickSell(item);
+                    }
+                  }}
+                  disabled={sellingItemId === item.id || (hasPrice && item.current_qty <= 0)}
+                  className={`p-3 rounded-[var(--r-md)] border text-left flex flex-col justify-between min-h-[88px] active:scale-[0.97] transition-all hit-slop ${
+                    !hasPrice
+                      ? 'border-[var(--warning)]/60 bg-[var(--accent-soft)]/20 hover:bg-[var(--accent-soft)]/30'
+                      : 'border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--surface-2)] disabled:opacity-50 disabled:pointer-events-none'
+                  }`}
+                >
+                  <div>
+                    <div className="font-medium text-xs text-[var(--text)] line-clamp-1">{item.name}</div>
+                    <div className="text-[11px] text-[var(--text-muted)] mt-0.5 tabular-nums">
+                      {item.current_qty} {item.unit} left
+                    </div>
                   </div>
-                </div>
-                <div className="mt-2 flex items-center justify-between">
-                  <span className="font-display font-semibold text-xs text-[var(--brand)] tabular-nums">
-                    {formatMoney(item.sell_price_minor || 0)}
-                  </span>
-                  <div className="w-5 h-5 rounded-full bg-[var(--brand-soft)] text-[var(--brand)] flex items-center justify-center">
-                    <Plus className="w-3 h-3 stroke-[2.5]" />
+                  <div className="mt-2 flex items-center justify-between">
+                    {hasPrice ? (
+                      <span className="font-display font-semibold text-xs text-[var(--brand)] tabular-nums">
+                        {formatMoney(item.sell_price_minor)}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold text-[var(--warning)] border border-[var(--warning)]/60 bg-[var(--surface)] px-1.5 py-0.5 rounded">
+                        Set price
+                      </span>
+                    )}
+                    <div className="w-5 h-5 rounded-full bg-[var(--brand-soft)] text-[var(--brand)] flex items-center justify-center">
+                      <Plus className="w-3 h-3 stroke-[2.5]" />
+                    </div>
                   </div>
-                </div>
-              </button>
-            ))}
+                </button>
+              );
+            })}
           </div>
         </section>
       )}
@@ -533,6 +578,16 @@ export default function HomePage() {
           </button>
         </div>
       )}
+
+      {/* Set Price Sheet for unpriced items */}
+      <PriceSheet
+        item={priceSheetItem}
+        open={priceSheetOpen}
+        onOpenChange={setPriceSheetOpen}
+        onPriceSet={async () => {
+          await loadDashboard();
+        }}
+      />
     </div>
   );
 }

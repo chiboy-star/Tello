@@ -11,6 +11,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { persistQueryCache } from '@/lib/query/cache-persister';
 import { useItems, useCustomers } from '@/lib/query/hooks';
 import { SellSkeleton } from '@/components/skeletons';
+import { PriceSheet } from '@/components/price-sheet';
 import {
   Pointer,
   Mic,
@@ -53,6 +54,10 @@ export default function SellPage() {
   const [undoBatchId, setUndoBatchId] = useState<string | null>(null);
   const [undoToastVisible, setUndoToastVisible] = useState(false);
   const [lastSoldItem, setLastSoldItem] = useState<{ id: string; qty: number } | null>(null);
+
+  // Set Price Drawer
+  const [priceSheetItem, setPriceSheetItem] = useState<any | null>(null);
+  const [priceSheetOpen, setPriceSheetOpen] = useState(false);
 
   useEffect(() => {
     if (itemsData?.items) {
@@ -535,28 +540,61 @@ export default function SellPage() {
           {mode === 'tap' && (
             <div className="space-y-6">
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                {items.slice(0, 16).map((item) => {
+                {items.map((item) => {
                   const isSelected = selectedTapItem?.id === item.id;
+                  const hasPrice = item.sell_price_minor !== null && item.sell_price_minor > 0;
+
                   return (
                     <div
                       key={item.id}
-                      onClick={() => setSelectedTapItem(item)}
-                      className={`cursor-pointer rounded-md border p-3.5 text-left transition-all duration-120 ${
-                        isSelected
+                      onClick={() => {
+                        if (!hasPrice) {
+                          setPriceSheetItem(item);
+                          setPriceSheetOpen(true);
+                        } else {
+                          setSelectedTapItem(item);
+                        }
+                      }}
+                      className={`cursor-pointer rounded-md border p-3.5 text-left transition-all duration-120 flex flex-col justify-between min-h-[92px] ${
+                        !hasPrice
+                          ? 'border-[var(--warning)]/60 bg-[var(--accent-soft)]/20 hover:bg-[var(--accent-soft)]/30'
+                          : isSelected
                           ? 'border-brand bg-brand-soft/30 shadow-subtle ring-1 ring-brand'
                           : 'border-border bg-surface hover:border-brand/40'
                       }`}
                     >
-                      <div className="font-semibold text-text line-clamp-1 text-sm">{item.name}</div>
-                      <div className="mt-1 font-bold text-brand text-sm tabular-nums">
-                        {formatMoney(item.sell_price_minor)}
+                      <div>
+                        <div className="font-semibold text-text line-clamp-1 text-sm">{item.name}</div>
+                        <div className="mt-0.5 text-xs text-text-muted tabular-nums">
+                          Stock: {item.current_qty} {item.unit}
+                        </div>
                       </div>
-                      <div className="mt-1 text-xs text-text-muted tabular-nums">
-                        Stock: {item.current_qty} {item.unit}
+
+                      <div className="mt-2">
+                        {hasPrice ? (
+                          <div className="font-bold text-brand text-sm tabular-nums">
+                            {formatMoney(item.sell_price_minor)}
+                          </div>
+                        ) : (
+                          <span className="inline-block text-[10px] font-bold text-[var(--warning)] border border-[var(--warning)]/60 bg-[var(--surface)] px-2 py-0.5 rounded">
+                            Set price
+                          </span>
+                        )}
                       </div>
                     </div>
                   );
                 })}
+
+                {/* Final "+ Add item" tile */}
+                <div
+                  onClick={() => window.dispatchEvent(new CustomEvent('tallo-open-add-item'))}
+                  className="cursor-pointer rounded-md border border-dashed border-[var(--border)] hover:border-[var(--brand)] p-3.5 flex flex-col items-center justify-center gap-1.5 min-h-[92px] transition-colors bg-[var(--surface)]/50 hover:bg-[var(--brand-soft)]/20"
+                >
+                  <div className="h-7 w-7 rounded-full bg-[var(--surface-2)] flex items-center justify-center text-[var(--brand)]">
+                    <Plus className="h-4 w-4 stroke-[2.5]" />
+                  </div>
+                  <span className="text-xs font-semibold text-[var(--brand)]">+ Add item</span>
+                </div>
               </div>
 
               {selectedTapItem && (
@@ -977,6 +1015,18 @@ export default function SellPage() {
           </div>
         </div>
       )}
+
+      {/* Set Price Sheet for unpriced items */}
+      <PriceSheet
+        item={priceSheetItem}
+        open={priceSheetOpen}
+        onOpenChange={setPriceSheetOpen}
+        onPriceSet={(minor) => {
+          if (priceSheetItem) {
+            setSelectedTapItem({ ...priceSheetItem, sell_price_minor: minor });
+          }
+        }}
+      />
     </div>
   );
 }

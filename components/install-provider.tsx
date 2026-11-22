@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
 import { usePathname } from 'next/navigation';
-import { Share, SquarePlus, Download, X } from 'lucide-react';
+import { Share, SquarePlus, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Drawer,

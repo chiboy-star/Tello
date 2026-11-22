@@ -21,7 +21,7 @@ test.describe('Part 1: Splash Policy & Critical Pre-Paint Styling', () => {
     // 1. Create a dedicated user session
     const setupContext = await browser.newContext();
     const setupPage = await setupContext.newPage();
-    const user = await setupTestUserSession(setupPage);
+    const _user = await setupTestUserSession(setupPage);
     const storageState = await setupContext.storageState();
     await setupContext.close();
 

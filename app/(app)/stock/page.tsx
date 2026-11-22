@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { formatMoney } from '@/lib/domain/money';
-import { Search, ChevronRight } from 'lucide-react';
+import { Search, ChevronRight, Plus, Sparkles, Package } from 'lucide-react';
 import { useItems } from '@/lib/query/hooks';
 import { useQueryClient } from '@tanstack/react-query';
 import { StockSkeleton } from '@/components/skeletons';
@@ -57,6 +57,8 @@ export default function StockPage() {
     return <StockSkeleton />;
   }
 
+  const hasEstimates = items.some((i: any) => i.sell_price_source === 'estimate');
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -68,7 +70,31 @@ export default function StockPage() {
             Track counts, depletion speeds, and inventory health
           </p>
         </div>
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={() => window.dispatchEvent(new CustomEvent('tallo-open-add-item'))}
+            className="bg-[var(--brand)] text-[var(--on-brand)] hover:bg-[var(--brand-hover)] h-9 text-xs font-semibold gap-1.5 shadow-sm"
+          >
+            <Plus className="h-4 w-4" /> Add Item
+          </Button>
+        </div>
       </div>
+
+      {/* Estimated Prices Review Banner */}
+      {hasEstimates && (
+        <Link
+          href="/stock/prices"
+          className="flex items-center justify-between p-3.5 rounded-[var(--r-md)] border border-[var(--accent)]/30 bg-[var(--accent-soft)]/30 text-xs text-[var(--text)] hover:bg-[var(--accent-soft)]/50 transition-colors"
+        >
+          <div className="flex items-center gap-2.5">
+            <Sparkles className="h-4 w-4 text-[var(--accent)] shrink-0" />
+            <span>Some items have estimated prices. Review and adjust for your area.</span>
+          </div>
+          <span className="font-semibold text-[var(--brand)] inline-flex items-center gap-1 shrink-0">
+            Review prices <ChevronRight className="h-3.5 w-3.5" />
+          </span>
+        </Link>
+      )}
 
       {/* Search and Filter Chips */}
       <div className="flex flex-col sm:flex-row gap-3">
@@ -185,7 +211,25 @@ export default function StockPage() {
               {filteredItems.length === 0 && (
                 <tr>
                   <td colSpan={6} className="p-10 text-center text-xs text-[var(--text-muted)]">
-                    No items found matching your search.
+                    {items.length === 0 ? (
+                      <div className="py-6 space-y-3">
+                        <Package className="mx-auto h-10 w-10 text-[var(--text-muted)]" />
+                        <div>
+                          <p className="font-semibold text-sm text-[var(--text)]">No items in your shop yet</p>
+                          <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                            Add items from the catalog or create custom items to start tracking stock.
+                          </p>
+                        </div>
+                        <Button
+                          onClick={() => window.dispatchEvent(new CustomEvent('tallo-open-add-item'))}
+                          className="bg-[var(--brand)] text-[var(--on-brand)] hover:bg-[var(--brand-hover)] text-xs font-semibold gap-1.5"
+                        >
+                          <Plus className="h-4 w-4" /> Add Item
+                        </Button>
+                      </div>
+                    ) : (
+                      'No items found matching your search.'
+                    )}
                   </td>
                 </tr>
               )}

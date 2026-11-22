@@ -21,7 +21,16 @@ vi.mock('@/lib/supabase/server', () => ({
       })),
     },
     from: vi.fn((table: string) => {
-      if (table === 'profiles') return { update: mockUpdate };
+      if (table === 'profiles') {
+        return {
+          update: mockUpdate,
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              maybeSingle: vi.fn().mockResolvedValue({ data: { currency: 'NGN' }, error: null }),
+            }),
+          }),
+        };
+      }
       if (table === 'items') return { select: mockSelect, insert: mockInsert };
       return {};
     }),

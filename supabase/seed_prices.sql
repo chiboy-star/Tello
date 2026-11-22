@@ -1,0 +1,82 @@
+-- Tallo Catalog Reference Price Seed
+-- Safe to re-run; updates reference prices on catalog_items based on researched retail prices
+
+update catalog_items set ref_price_minor = 15000, ref_price_source = 'NBS / Retail FMCG', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'everyday' and name = 'Indomie Chicken';
+update catalog_items set ref_price_minor = 15000, ref_price_source = 'Retail FMCG', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'everyday' and name = 'Indomie Onion';
+update catalog_items set ref_price_minor = 25000, ref_price_source = 'Pricepally / FMCG', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'everyday' and name = 'Indomie Superpack';
+update catalog_items set ref_price_minor = 5000, ref_price_source = 'National Retail Index', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'everyday' and name = 'Pure Water';
+update catalog_items set ref_price_minor = 20000, ref_price_source = 'Supermart / Nestle Retail', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'everyday' and name = 'Bottled Water 75cl';
+update catalog_items set ref_price_minor = 15000, ref_price_source = 'Konga / Supermart', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'everyday' and name = 'Cabin Biscuit';
+update catalog_items set ref_price_minor = 10000, ref_price_source = 'Konga / Supermart', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'everyday' and name = 'Coaster Biscuit';
+update catalog_items set ref_price_minor = 15000, ref_price_source = 'Supermart / Minimie', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'everyday' and name = 'Minimie Chinchin';
+update catalog_items set ref_price_minor = 20000, ref_price_source = 'UAC Foods', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'everyday' and name = 'Gala Sausage';
+update catalog_items set ref_price_minor = 2000, ref_price_source = 'Cadbury Retail', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'everyday' and name = 'Tom Tom Candy';
+update catalog_items set ref_price_minor = 2000, ref_price_source = 'Cadbury Retail', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'everyday' and name = 'Buttermint Candy';
+update catalog_items set ref_price_minor = 10000, ref_price_source = 'Supermart / Wrigley', ref_price_confidence = 'medium', ref_price_checked_at = now() where category = 'everyday' and name = 'Chewing Gum (Orbit)';
+update catalog_items set ref_price_minor = 25000, ref_price_source = 'Pricepally Retail', ref_price_confidence = 'medium', ref_price_checked_at = now() where category = 'everyday' and name = 'Plantain Chips';
+update catalog_items set ref_price_minor = 120000, ref_price_source = 'Pricepally / Open Market', ref_price_confidence = 'medium', ref_price_checked_at = now() where category = 'everyday' and name = 'Groundnut 1 Bottle';
+update catalog_items set ref_price_minor = 120000, ref_price_source = 'NBS Selected Food Prices', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'everyday' and name = 'Bread (Family Loaf)';
+
+update catalog_items set ref_price_minor = 160000, ref_price_source = 'NBS Selected Food Prices', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'food' and name = 'Rice';
+update catalog_items set ref_price_minor = 230000, ref_price_source = 'NBS Selected Food Prices', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'food' and name = 'Beans (Oloyin)';
+update catalog_items set ref_price_minor = 90000, ref_price_source = 'NBS Selected Food Prices', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'food' and name = 'Garri (White)';
+update catalog_items set ref_price_minor = 95000, ref_price_source = 'NBS Selected Food Prices', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'food' and name = 'Garri (Yellow)';
+update catalog_items set ref_price_minor = 180000, ref_price_source = 'NBS Selected Food Prices', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'food' and name = 'Vegetable Oil';
+update catalog_items set ref_price_minor = 160000, ref_price_source = 'NBS Selected Food Prices', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'food' and name = 'Palm Oil';
+update catalog_items set ref_price_minor = 25000, ref_price_source = 'Foodlocker / Retail Index', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'food' and name = 'Tomato Paste (Gino/De Rica)';
+update catalog_items set ref_price_minor = 120000, ref_price_source = 'Nestle Nigeria Retail', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'food' and name = 'Maggi Star Cubes';
+update catalog_items set ref_price_minor = 140000, ref_price_source = 'Unilever Nigeria Retail', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'food' and name = 'Knorr Chicken Cubes';
+update catalog_items set ref_price_minor = 20000, ref_price_source = 'Dangote Retail Index', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'food' and name = 'Salt (Dangote)';
+update catalog_items set ref_price_minor = 150000, ref_price_source = 'Supermart Retail', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'food' and name = 'Sugar (St. Louis Cube)';
+update catalog_items set ref_price_minor = 180000, ref_price_source = 'Flour Mills of Nigeria', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'food' and name = 'Semovita (Golden Penny 1kg)';
+update catalog_items set ref_price_minor = 70000, ref_price_source = 'Flour Mills of Nigeria', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'food' and name = 'Spaghetti (Golden Penny)';
+update catalog_items set ref_price_minor = 70000, ref_price_source = 'FMCG Retail Index', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'food' and name = 'Macaroni';
+update catalog_items set ref_price_minor = 10000, ref_price_source = 'Tiger / Supermart', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'food' and name = 'Curry Powder Sachet';
+
+update catalog_items set ref_price_minor = 40000, ref_price_source = 'NBC / Coca-Cola Retail', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'drinks' and name = 'Coca-Cola 50cl';
+update catalog_items set ref_price_minor = 40000, ref_price_source = 'NBC Retail', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'drinks' and name = 'Fanta Orange 50cl';
+update catalog_items set ref_price_minor = 40000, ref_price_source = 'NBC Retail', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'drinks' and name = 'Sprite 50cl';
+update catalog_items set ref_price_minor = 35000, ref_price_source = 'Seven-Up Bottling Co', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'drinks' and name = 'Pepsi 50cl';
+update catalog_items set ref_price_minor = 45000, ref_price_source = 'Nigerian Breweries', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'drinks' and name = 'Maltina Can';
+update catalog_items set ref_price_minor = 45000, ref_price_source = 'Nigerian Breweries', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'drinks' and name = 'Amstel Malta';
+update catalog_items set ref_price_minor = 18000, ref_price_source = 'FrieslandCampina WAMCO', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'drinks' and name = 'Peak Milk Sachet';
+update catalog_items set ref_price_minor = 65000, ref_price_source = 'FrieslandCampina WAMCO', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'drinks' and name = 'Peak Milk Tin';
+update catalog_items set ref_price_minor = 18000, ref_price_source = 'Nestle Nigeria', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'drinks' and name = 'Milo Sachet';
+update catalog_items set ref_price_minor = 15000, ref_price_source = 'Arla Dano Retail', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'drinks' and name = 'Dano Milk Sachet';
+update catalog_items set ref_price_minor = 140000, ref_price_source = 'Chi Limited Retail', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'drinks' and name = 'Chi Exotic Juice 1L';
+update catalog_items set ref_price_minor = 160000, ref_price_source = 'Chi Limited Retail', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'drinks' and name = 'Hollandia Yoghurt 1L';
+update catalog_items set ref_price_minor = 30000, ref_price_source = 'Local Market Aggregator', ref_price_confidence = 'medium', ref_price_checked_at = now() where category = 'drinks' and name = 'Zobo Drink';
+update catalog_items set ref_price_minor = 60000, ref_price_source = 'Suntory / Supermart', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'drinks' and name = 'Lucozade Boost 50cl';
+update catalog_items set ref_price_minor = 40000, ref_price_source = 'Rite Foods Retail', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'drinks' and name = 'Fearless Energy Drink';
+
+update catalog_items set ref_price_minor = 20000, ref_price_source = 'Procter & Gamble', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'household' and name = 'Ariel Detergent Sachet';
+update catalog_items set ref_price_minor = 20000, ref_price_source = 'Unilever Nigeria', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'household' and name = 'Omo Detergent Sachet';
+update catalog_items set ref_price_minor = 15000, ref_price_source = 'Aspira Nigeria', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'household' and name = 'Viva Detergent Sachet';
+update catalog_items set ref_price_minor = 35000, ref_price_source = 'Unilever Nigeria', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'household' and name = 'Sunlight Washing Bar Soap';
+update catalog_items set ref_price_minor = 130000, ref_price_source = 'PZ Cussons Retail', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'household' and name = 'Morning Fresh Dishwash 450ml';
+update catalog_items set ref_price_minor = 10000, ref_price_source = 'Supermart Retail', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'household' and name = 'Hypo Bleach Sachet';
+update catalog_items set ref_price_minor = 85000, ref_price_source = 'Reckitt Nigeria', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'household' and name = 'Jik Bleach';
+update catalog_items set ref_price_minor = 5000, ref_price_source = 'Retail FMCG', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'household' and name = 'Matches (Three Stars)';
+update catalog_items set ref_price_minor = 60000, ref_price_source = 'Supermart Retail', ref_price_confidence = 'medium', ref_price_checked_at = now() where category = 'household' and name = 'Candle (Pack of 6)';
+update catalog_items set ref_price_minor = 220000, ref_price_source = 'SC Johnson Retail', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'household' and name = 'Raid Insecticide 300ml';
+update catalog_items set ref_price_minor = 110000, ref_price_source = 'Retail Index', ref_price_confidence = 'medium', ref_price_checked_at = now() where category = 'household' and name = 'Sniper (Pack)';
+update catalog_items set ref_price_minor = 10000, ref_price_source = 'Supermart Retail', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'household' and name = 'Iron Sponge / Steel Wool';
+update catalog_items set ref_price_minor = 25000, ref_price_source = 'Bel Impex Retail', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'household' and name = 'Toilet Roll (Bel Impex)';
+update catalog_items set ref_price_minor = 50000, ref_price_source = 'Pricepally Retail', ref_price_confidence = 'medium', ref_price_checked_at = now() where category = 'household' and name = 'Nylon Bags (Small roll)';
+update catalog_items set ref_price_minor = 35000, ref_price_source = 'Supermart Retail', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'household' and name = 'Mosquito Coil';
+
+update catalog_items set ref_price_minor = 80000, ref_price_source = 'Unilever Nigeria', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'personal_care' and name = 'Close-Up Toothpaste 130g';
+update catalog_items set ref_price_minor = 90000, ref_price_source = 'Procter & Gamble', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'personal_care' and name = 'Oral-B Toothpaste';
+update catalog_items set ref_price_minor = 25000, ref_price_source = 'Supermart Retail', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'personal_care' and name = 'Toothbrush (Adult)';
+update catalog_items set ref_price_minor = 60000, ref_price_source = 'Reckitt Nigeria', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'personal_care' and name = 'Dettol Bathing Soap';
+update catalog_items set ref_price_minor = 50000, ref_price_source = 'PZ Cussons Retail', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'personal_care' and name = 'Premier Cool Soap';
+update catalog_items set ref_price_minor = 110000, ref_price_source = 'Procter & Gamble', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'personal_care' and name = 'Always Sanitary Pads';
+update catalog_items set ref_price_minor = 90000, ref_price_source = 'Hayat Kimya', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'personal_care' and name = 'Molped Pads';
+update catalog_items set ref_price_minor = 100000, ref_price_source = 'Unilever Nigeria', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'personal_care' and name = 'Vaseline Petroleum Jelly 100ml';
+update catalog_items set ref_price_minor = 380000, ref_price_source = 'Beiersdorf Retail', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'personal_care' and name = 'Nivea Body Lotion';
+update catalog_items set ref_price_minor = 30000, ref_price_source = 'Supermart Retail', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'personal_care' and name = 'Cotton Buds';
+update catalog_items set ref_price_minor = 20000, ref_price_source = 'Supermart Retail', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'personal_care' and name = 'Shaving Razor (Gillette/Dorco)';
+update catalog_items set ref_price_minor = 15000, ref_price_source = 'Emzor Pharmaceuticals', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'personal_care' and name = 'Paracetamol Tablets';
+update catalog_items set ref_price_minor = 40000, ref_price_source = 'Supermart Retail', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'personal_care' and name = 'Methylated Spirit 100ml';
+update catalog_items set ref_price_minor = 30000, ref_price_source = 'PZ Cussons Retail', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'personal_care' and name = 'Robb Balm (Small)';
+update catalog_items set ref_price_minor = 10000, ref_price_source = 'Bel Impex Retail', ref_price_confidence = 'high', ref_price_checked_at = now() where category = 'personal_care' and name = 'Pocket Tissue';

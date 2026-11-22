@@ -12,6 +12,7 @@ const UpdateItemSchema = z.object({
   costPrice: z.number().optional().nullable(),
   reorderLeadDays: z.number().optional(),
   aliases: z.array(z.string()).optional(),
+  archived: z.boolean().optional(),
 });
 
 export const GET = withAuth(async (_req: NextRequest, { user, supabase, params }) => {
@@ -59,6 +60,11 @@ export const PATCH = withAuth(async (req: NextRequest, { user, supabase, params 
   }
   if (parsed.data.reorderLeadDays !== undefined) updateData.reorder_lead_days = parsed.data.reorderLeadDays;
   if (parsed.data.aliases !== undefined) updateData.aliases = parsed.data.aliases;
+  if (parsed.data.archived === false) {
+    updateData.archived_at = null;
+  } else if (parsed.data.archived === true) {
+    updateData.archived_at = new Date().toISOString();
+  }
 
   const { data: item, error } = await supabase
     .from('items')

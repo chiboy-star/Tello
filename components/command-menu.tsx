@@ -117,6 +117,19 @@ export function CommandMenu() {
                 <kbd className="hidden sm:inline-block text-[11px] text-text-muted">G H</kbd>
               </button>
               <button
+                onClick={() => {
+                  setOpen(false);
+                  window.dispatchEvent(new CustomEvent('tallo-open-add-item'));
+                }}
+                className="flex w-full items-center justify-between rounded-md px-2.5 py-2 text-left text-sm text-text hover:bg-surface-2 transition-colors"
+              >
+                <div className="flex items-center gap-2.5">
+                  <Plus className="h-4 w-4 text-brand" />
+                  <span className="font-semibold text-brand">Add Item</span>
+                </div>
+                <kbd className="hidden sm:inline-block text-[11px] text-text-muted">A</kbd>
+              </button>
+              <button
                 onClick={() => navigate('/sell')}
                 className="flex w-full items-center justify-between rounded-md px-2.5 py-2 text-left text-sm text-text hover:bg-surface-2 transition-colors"
               >
