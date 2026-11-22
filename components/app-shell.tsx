@@ -96,6 +96,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       setIsOnline(true);
       await flushOfflineQueue();
       checkQueue();
+      queryClient.invalidateQueries({ queryKey: ['checklist'] });
+      queryClient.invalidateQueries({ queryKey: ['items'] });
+      queryClient.invalidateQueries({ queryKey: ['entries'] });
     };
 
     const handleOffline = () => {

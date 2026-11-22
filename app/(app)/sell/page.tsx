@@ -450,6 +450,7 @@ export default function SellPage() {
         queryClient.invalidateQueries({ queryKey: ['items'] }),
         queryClient.invalidateQueries({ queryKey: ['entries'] }),
         queryClient.invalidateQueries({ queryKey: ['customers'] }),
+        queryClient.invalidateQueries({ queryKey: ['checklist'] }),
       ]);
       await persistQueryCache(queryClient);
 

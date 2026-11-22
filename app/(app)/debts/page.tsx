@@ -40,6 +40,7 @@ export default function DebtsPage() {
         setNewCustName('');
         setNewCustPhone('');
         await queryClient.invalidateQueries({ queryKey: ['customers'] });
+        await queryClient.invalidateQueries({ queryKey: ['checklist'] });
       }
     } catch (err) {
       console.error('Failed to create customer:', err);
@@ -63,6 +64,7 @@ export default function DebtsPage() {
         setPayingCustomer(null);
         setPayAmount('');
         await queryClient.invalidateQueries({ queryKey: ['customers'] });
+        await queryClient.invalidateQueries({ queryKey: ['checklist'] });
       }
     } catch (err) {
       console.error('Failed to record payment:', err);

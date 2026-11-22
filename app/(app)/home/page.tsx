@@ -16,7 +16,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { formatMoney } from '@/lib/domain/money';
 import { useQueryClient } from '@tanstack/react-query';
-import { useItems, useCustomers, useEntries } from '@/lib/query/hooks';
+import { useItems, useCustomers, useEntries, useChecklist } from '@/lib/query/hooks';
 import { HomeSkeleton } from '@/components/skeletons';
 import { PriceSheet } from '@/components/price-sheet';
 
@@ -25,6 +25,7 @@ export default function HomePage() {
   const { data: itemsData, isLoading: itemsLoading, isFetching: itemsFetching } = useItems('all');
   const { data: custData, isLoading: custLoading, isFetching: custFetching } = useCustomers();
   const { data: entriesData, isLoading: entriesLoading, isFetching: entriesFetching } = useEntries(50);
+  const { data: checklistData } = useChecklist();
 
   const items = useMemo(() => itemsData?.items || [], [itemsData]);
   const customers = useMemo(() => custData?.customers || [], [custData]);
@@ -51,6 +52,7 @@ export default function HomePage() {
       queryClient.invalidateQueries({ queryKey: ['items'] }),
       queryClient.invalidateQueries({ queryKey: ['customers'] }),
       queryClient.invalidateQueries({ queryKey: ['entries'] }),
+      queryClient.invalidateQueries({ queryKey: ['checklist'] }),
     ]);
     setLastUpdated(Date.now());
     setMinutesAgo(0);
@@ -102,17 +104,19 @@ export default function HomePage() {
   // Quick sell items (top 4 items)
   const quickSellItems = items.slice(0, 4);
 
-  // Setup checklist items with price review and add item actions
-  const hasEstimates = items.some((i: any) => i.sell_price_source === 'estimate');
-  const checklist = [
-    { label: 'Add at least 5 items', done: items.length >= 5, action: 'add-item' },
-    { label: 'Review your prices', done: !hasEstimates, href: '/stock/prices' },
-    { label: 'Log your first sale', done: entries.some((e: any) => e.type === 'sale'), href: '/sell' },
-    { label: 'Try voice or photo entry', done: entries.some((e: any) => e.source === 'voice' || e.source === 'image'), href: '/sell' },
-    { label: 'Add a customer record', done: customers.length > 0, href: '/debts' },
+  // Setup checklist items driven strictly by server /api/checklist
+  const checklistRaw = [
+    { key: 'addItems', label: 'Add at least 5 items', done: !!checklistData?.steps?.addItems, action: 'add-item' },
+    { key: 'reviewPrices', label: 'Review your prices', done: !!checklistData?.steps?.reviewPrices, href: '/stock/prices' },
+    { key: 'logSale', label: 'Log your first sale', done: !!checklistData?.steps?.logSale, href: '/sell' },
+    { key: 'tryAi', label: 'Try voice or photo entry', done: !!checklistData?.steps?.tryAi, href: '/sell' },
+    { key: 'addCustomer', label: 'Add a customer record', done: !!checklistData?.steps?.addCustomer, href: '/debts' },
   ];
-  const completedCount = checklist.filter((c) => c.done).length;
-  const isChecklistComplete = checklist.every((c) => c.done);
+
+  // Completed steps collapse or move to bottom
+  const checklist = [...checklistRaw].sort((a, b) => (a.done === b.done ? 0 : a.done ? 1 : -1));
+  const completedCount = checklistData?.completedCount ?? checklist.filter((c) => c.done).length;
+  const isChecklistComplete = checklistData?.allDone ?? (completedCount === checklist.length);
 
   // Quick sell handler with optimistic update and Undo
   const handleQuickSell = async (item: any) => {
@@ -162,12 +166,15 @@ export default function HomePage() {
         
         // Refresh entry list in background
         loadDashboard();
+        queryClient.invalidateQueries({ queryKey: ['checklist'] });
       } else {
         // Rollback
         loadDashboard();
+        queryClient.invalidateQueries({ queryKey: ['checklist'] });
       }
     } catch {
       loadDashboard();
+      queryClient.invalidateQueries({ queryKey: ['checklist'] });
     } finally {
       setSellingItemId(null);
     }
@@ -183,6 +190,7 @@ export default function HomePage() {
     try {
       await fetch(`/api/entries/${idToVoid}/void`, { method: 'POST' });
       await loadDashboard();
+      queryClient.invalidateQueries({ queryKey: ['checklist'] });
     } catch (err) {
       console.error('Failed to undo sale:', err);
     }
@@ -210,8 +218,8 @@ export default function HomePage() {
             <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text)]">
               Shop Dashboard
             </h1>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--surface-2)] text-[var(--text-muted)] font-medium">
-              {greeting}
+            <span className="text-xs text-[var(--text-muted)] font-medium">
+              • {greeting}
             </span>
           </div>
           <div className="flex items-center gap-2 mt-1 text-xs text-[var(--text-muted)]">

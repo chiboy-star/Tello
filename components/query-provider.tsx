@@ -21,6 +21,19 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let unsubscribe: (() => void) | null = null;
+    let handleInvalidate: ((e: any) => void) | null = null;
+
+    if (typeof window !== 'undefined') {
+      (window as any).__REACT_QUERY_CLIENT__ = queryClient;
+      handleInvalidate = (e: any) => {
+        if (e.detail?.queryKey) {
+          queryClient.invalidateQueries({ queryKey: e.detail.queryKey });
+        } else {
+          queryClient.invalidateQueries();
+        }
+      };
+      window.addEventListener('tallo:invalidate-queries' as any, handleInvalidate);
+    }
 
     restoreQueryCache(queryClient).then(() => {
       // Subscribe to cache updates with debounce
@@ -35,6 +48,9 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       if (unsubscribe) unsubscribe();
+      if (typeof window !== 'undefined' && handleInvalidate) {
+        window.removeEventListener('tallo:invalidate-queries' as any, handleInvalidate);
+      }
     };
   }, [queryClient]);
 

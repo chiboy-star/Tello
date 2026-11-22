@@ -141,6 +141,7 @@ export default function ReviewPricesPage() {
     } catch (err) {
       console.error('Failed to save price:', err);
       queryClient.invalidateQueries({ queryKey: ['items'] });
+      queryClient.invalidateQueries({ queryKey: ['checklist'] });
     }
   };
 

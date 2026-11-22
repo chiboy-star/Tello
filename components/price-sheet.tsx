@@ -63,6 +63,7 @@ export function PriceSheet({ item, open, onOpenChange, onPriceSet }: PriceSheetP
 
       if (res.ok) {
         await queryClient.invalidateQueries({ queryKey: ['items'] });
+        await queryClient.invalidateQueries({ queryKey: ['checklist'] });
         onOpenChange(false);
         if (onPriceSet) {
           onPriceSet(minor);

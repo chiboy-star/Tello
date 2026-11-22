@@ -151,6 +151,7 @@ export function AddItemDrawer({
           queryClient.invalidateQueries({ queryKey: ['catalog'] }),
           queryClient.invalidateQueries({ queryKey: ['reports'] }),
           queryClient.invalidateQueries({ queryKey: ['entries'] }),
+          queryClient.invalidateQueries({ queryKey: ['checklist'] }),
         ]);
 
         onOpenChange(false);
@@ -246,6 +247,7 @@ export function AddItemDrawer({
           queryClient.invalidateQueries({ queryKey: ['catalog'] }),
           queryClient.invalidateQueries({ queryKey: ['reports'] }),
           queryClient.invalidateQueries({ queryKey: ['entries'] }),
+          queryClient.invalidateQueries({ queryKey: ['checklist'] }),
         ]);
         onOpenChange(false);
         showUndoNotification(`"${restoreItemInfo.name}" restored · Undo`, [restoreItemInfo.id]);

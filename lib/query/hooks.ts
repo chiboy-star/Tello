@@ -84,6 +84,20 @@ export function useReport(period: 'week' | 'month', periodOffset: number = 0) {
   });
 }
 
+// --- Checklist Query ---
+export function useChecklist() {
+  return useQuery({
+    queryKey: ['checklist'],
+    queryFn: async () => {
+      const res = await fetch('/api/checklist');
+      if (!res.ok) throw new Error('Failed to fetch checklist');
+      return res.json();
+    },
+    refetchOnWindowFocus: true,
+    staleTime: 5000,
+  });
+}
+
 // --- Settings Query ---
 export function useSettings() {
   return useQuery({
