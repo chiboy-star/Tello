@@ -186,16 +186,17 @@ export function InstallBanner() {
       }
     } catch {}
 
-    // Wait about 4 seconds and check that splash has finished
+    // Wait a short quiet period and check that splash has finished
     const timer = setTimeout(() => {
       // Check dialog open
       const hasOpenDialog = typeof document !== 'undefined' && document.querySelector('[role="dialog"]') !== null;
-      const isSplashVisible = typeof document !== 'undefined' && document.documentElement.dataset.splash === '1';
+      const splashElem = typeof document !== 'undefined' && document.getElementById('brand-splash');
+      const isSplashVisible = splashElem && !splashElem.hasAttribute('aria-hidden') && splashElem.style.display !== 'none';
 
       if (!hasOpenDialog && !isSplashVisible) {
         setVisible(true);
       }
-    }, 4000);
+    }, 1500);
 
     return () => clearTimeout(timer);
   }, [canInstall, pathname]);
