@@ -5,7 +5,8 @@ test.describe('E2E #11: PWA Manifest & App Shell', () => {
     const res = await request.get('/manifest.webmanifest');
     expect(res.ok()).toBeTruthy();
     const manifest = await res.json();
-    expect(manifest.name).toBe('Tallo — Sales & Stock Tracker');
+    expect(manifest.name).toBe('Tallo');
+    expect(manifest.short_name).toBe('Tallo');
     expect(manifest.display).toBe('standalone');
     expect(manifest.start_url).toBe('/home');
   });

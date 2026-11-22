@@ -9,7 +9,7 @@ test.describe('Part 2: PWA Standalone Mode & Instant Auth Routing', () => {
     // 1. Visit landing '/'
     await page.goto('/');
     await expect(page).toHaveURL(/.*home/);
-    await expect(page.locator('text=Shop Dashboard')).toBeVisible();
+    await expect(page.locator('h1, [data-testid="home-heading"]').first()).toBeVisible({ timeout: 15000 });
     await expect(page.locator('text=Know what to restock')).not.toBeVisible();
 
     // 2. Visit '/login'

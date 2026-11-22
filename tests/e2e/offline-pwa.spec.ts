@@ -6,7 +6,8 @@ test.describe('E2E #8 & #11: PWA Service Worker & Offline Queue', () => {
     const res = await request.get('/manifest.webmanifest');
     expect(res.ok()).toBeTruthy();
     const manifest = await res.json();
-    expect(manifest.name).toBe('Tallo — Sales & Stock Tracker');
+    expect(manifest.name).toBe('Tallo');
+    expect(manifest.short_name).toBe('Tallo');
     expect(manifest.display).toBe('standalone');
     expect(manifest.start_url).toBe('/home');
   });

@@ -32,6 +32,12 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: 'Tallo — Know your shop',
   description: 'Fast, lightweight sales, stock, and credit tracker for shop owners.',
+  applicationName: 'Tallo',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Tallo',
+  },
   icons: {
     icon: '/icons/icon.svg',
     apple: '/icons/icon.svg',

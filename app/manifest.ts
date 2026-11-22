@@ -2,7 +2,7 @@ import { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Tallo — Sales & Stock Tracker',
+    name: 'Tallo',
     short_name: 'Tallo',
     description: 'Lightweight sales, stock and credit tracker for shop owners',
     start_url: '/home',
