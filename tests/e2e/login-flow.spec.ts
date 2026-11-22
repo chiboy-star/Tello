@@ -93,6 +93,8 @@ test.describe('BUG A: Existing User Login Flow', () => {
     await expect(page).toHaveURL(/\/login/, { timeout: 10000 });
 
     // Log in again through the UI
+    await page.waitForLoadState('domcontentloaded');
+    await page.locator('#brand-splash').waitFor({ state: 'hidden' }).catch(() => {});
     await page.waitForSelector('input[type="email"]', { state: 'visible' });
     await page.fill('input[type="email"]', existingUser.email);
     await page.fill('input[type="password"]', 'password123');
