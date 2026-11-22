@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/api/withAuth';
-import { apiError } from '@/lib/api/errors';
 
 export const POST = withAuth(async (_req: NextRequest, { supabase }) => {
-  let { data: count, error } = await supabase.rpc('confirm_estimated_prices');
+  const { data: count, error } = await supabase.rpc('confirm_estimated_prices');
 
   if (error) {
     // Fallback if RPC not yet migrated in DB

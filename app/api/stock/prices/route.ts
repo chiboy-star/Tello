@@ -26,7 +26,7 @@ export const POST = withAuth(async (req: NextRequest, { supabase }) => {
     sellPriceMinor: toMinor(u.sellPrice),
   }));
 
-  let { data: count, error } = await supabase.rpc('set_item_prices', {
+  const { data: count, error } = await supabase.rpc('set_item_prices', {
     p_updates: rpcUpdates,
   });
 
