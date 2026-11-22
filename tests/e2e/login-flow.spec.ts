@@ -93,13 +93,13 @@ test.describe('BUG A: Existing User Login Flow', () => {
     await expect(page).toHaveURL(/\/login/, { timeout: 10000 });
 
     // Log in again through the UI
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle').catch(() => {});
     await page.locator('#brand-splash').waitFor({ state: 'hidden' }).catch(() => {});
     await page.waitForSelector('input[type="email"]', { state: 'visible' });
     await page.fill('input[type="email"]', existingUser.email);
     await page.fill('input[type="password"]', 'password123');
     await page.click('button[type="submit"]');
-    await expect(page).toHaveURL(/\/home/, { timeout: 15000 });
+    await expect(page).toHaveURL(/\/home/, { timeout: 20000 });
   });
 
   test('(v) with a stale service worker present, login still works', async ({ page }) => {

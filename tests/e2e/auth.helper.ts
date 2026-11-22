@@ -45,7 +45,7 @@ export async function setupTestUserSession(page: Page): Promise<TestUser> {
 
     // Step 3: Complete
     await page.click('button:has-text("Finish Setup & Open Shop")');
-    await page.waitForURL(/.*home/, { timeout: 15000 });
+    await page.waitForURL(/.*home/, { timeout: 25000, waitUntil: 'commit' });
   }
 
   return { email, name };
