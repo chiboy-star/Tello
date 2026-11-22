@@ -55,6 +55,48 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ---
 
+## Vercel Deployment Checklist
+
+Follow this checklist when deploying Tallo to Vercel:
+
+### 1. Environment Variables in Vercel Dashboard
+In your Vercel Project Settings -> **Environment Variables**, configure:
+- `NEXT_PUBLIC_SUPABASE_URL`: Supabase project URL (e.g. `https://xxxx.supabase.co`)
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Supabase anon/public key
+- `SUPABASE_SERVICE_ROLE_KEY`: Supabase secret service role key (encrypted, server-only)
+- `GEMINI_API_KEY`: Google AI Studio API key
+- `GEMINI_MODEL`: `gemini-3.5-flash-lite`
+- `GEMINI_FALLBACK_MODEL`: `gemini-3.6-flash`
+- `AI_PROVIDER`: `gemini`
+- `AI_DAILY_LIMIT_PER_USER`: `10`
+
+### 2. Supabase Auth Configuration
+1. In your Supabase Dashboard -> **Authentication** -> **URL Configuration**:
+   - Set **Site URL** to your Vercel production domain: `https://<your-project>.vercel.app`
+   - In **Redirect URLs**, add: `https://<your-project>.vercel.app/**` and `http://localhost:3000/**`
+2. Under **Authentication** -> **Providers** -> **Email**:
+   - Ensure **Confirm email** is toggled **OFF** for seamless instant onboarding.
+
+### 3. Database Migrations
+In the Supabase SQL Editor, run:
+1. `supabase/migrations/20261122000000_catalog_prices.sql` (Creates ledger, RLS policies, items, catalog columns, and RPCs)
+2. `supabase/seed_prices.sql` (Populates reference catalog benchmarks)
+
+### 4. 2-Minute Production Verification
+After deployment completes:
+1. Open `https://<your-project>.vercel.app` in a fresh incognito window:
+   - Confirm landing page styling applies immediately (proper typography, green `#0E7C57` buttons, balanced grids, no unstyled HTML or oversized SVGs).
+2. Click **Start free**:
+   - Complete signup with a test email/password.
+   - Enter shop name and select default catalog items.
+3. Land on `/home`:
+   - Tap any Quick Sell tile to confirm instant sales logging (< 5s).
+   - Check the stock tab to verify items and price estimates.
+4. Check PWA Installability:
+   - On Chrome, verify the Install icon appears in the address bar. On mobile Safari, verify the Add to Home Screen drawer affordance works.
+
+---
+
 ## How to feel the real speed
 
 To experience Tallo's true instant navigation speed and offline PWA capabilities:

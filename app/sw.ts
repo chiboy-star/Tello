@@ -18,8 +18,8 @@ declare global {
 
 declare const self: ServiceWorkerGlobalScope;
 
-// Bump cache version to v2
-const CACHE_VERSION = 'v2';
+// Bump cache version to v3
+const CACHE_VERSION = 'v3';
 setCacheNameDetails({
   prefix: 'tallo',
   suffix: CACHE_VERSION,

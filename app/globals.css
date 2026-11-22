@@ -344,14 +344,56 @@ html[data-splash="0"] #brand-splash {
   }
 }
 
-/* Fallback hiding if JS fails (3s cap) */
+/* Fallback hiding if JS fails (8.5s safety cap) */
 @keyframes splash-fallback-hide {
-  0%, 95% { opacity: 1; }
+  0%, 96% { opacity: 1; }
   100% { opacity: 0; visibility: hidden; pointer-events: none; }
 }
 
 #brand-splash {
-  animation: splash-fallback-hide 3.2s forwards;
+  animation: splash-fallback-hide 8.5s forwards;
+}
+
+/* Seamless loading loop while app is not ready (Part 3) */
+.splash-looping .splash-inner-group {
+  transform: rotate(0deg) !important;
+  animation: none !important;
+}
+
+.splash-looping .splash-bar {
+  opacity: 1 !important;
+  transform: none !important;
+  animation: none !important;
+}
+
+.splash-looping .splash-wordmark {
+  opacity: 1 !important;
+  transform: none !important;
+  animation: none !important;
+}
+
+.splash-looping .splash-squircle {
+  opacity: 1 !important;
+  transform: none !important;
+  animation: none !important;
+}
+
+.splash-looping .splash-strike {
+  stroke-dashoffset: 0 !important;
+  transform-origin: 256px 256px;
+  animation: splash-strike-pulse 1.2s ease-in-out infinite !important;
+  will-change: transform, opacity;
+}
+
+@keyframes splash-strike-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.65;
+    transform: scale(1.03);
+  }
 }
 
 /* Skeletons */
@@ -426,7 +468,8 @@ html[data-splash="0"] #brand-splash {
     transform: none !important;
     animation: none !important;
   }
-  .splash-strike {
+  .splash-strike,
+  .splash-looping .splash-strike {
     stroke-dashoffset: 0 !important;
     animation: none !important;
   }
