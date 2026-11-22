@@ -38,46 +38,54 @@ export async function enqueueOfflineSale(sale: QueuedSale): Promise<void> {
   }
 }
 
+let isFlushing = false;
+
 export async function flushOfflineQueue(): Promise<{ flushed: number; failed: number }> {
-  const queue = await getOfflineQueue();
-  if (queue.length === 0) return { flushed: 0, failed: 0 };
+  if (isFlushing) return { flushed: 0, failed: 0 };
+  isFlushing = true;
+  try {
+    const queue = await getOfflineQueue();
+    if (queue.length === 0) return { flushed: 0, failed: 0 };
 
-  const remaining: QueuedSale[] = [];
-  let flushed = 0;
-  let failed = 0;
+    const remaining: QueuedSale[] = [];
+    let flushed = 0;
+    let failed = 0;
 
-  for (const item of queue) {
-    try {
-      const res = await fetch('/api/entries/commit', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Idempotency-Key': item.batchId,
-        },
-        body: JSON.stringify({ entries: item.entries }),
-      });
+    for (const item of queue) {
+      try {
+        const res = await fetch('/api/entries/commit', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Idempotency-Key': item.batchId,
+          },
+          body: JSON.stringify({ entries: item.entries }),
+        });
 
-      if (res.ok) {
-        flushed += 1;
-      } else {
+        if (res.ok) {
+          flushed += 1;
+        } else {
+          remaining.push(item);
+          failed += 1;
+        }
+      } catch {
         remaining.push(item);
         failed += 1;
       }
-    } catch {
-      remaining.push(item);
-      failed += 1;
     }
-  }
 
-  if (remaining.length === 0) {
-    await del(QUEUE_KEY);
-  } else {
-    await set(QUEUE_KEY, remaining);
-  }
+    if (remaining.length === 0) {
+      await del(QUEUE_KEY);
+    } else {
+      await set(QUEUE_KEY, remaining);
+    }
 
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(new Event('tallo-queue-updated'));
-  }
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('tallo-queue-updated'));
+    }
 
-  return { flushed, failed };
+    return { flushed, failed };
+  } finally {
+    isFlushing = false;
+  }
 }

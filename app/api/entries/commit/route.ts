@@ -79,6 +79,16 @@ export const POST = withAuth(async (req: NextRequest, { user: _user, supabase })
   });
 
   if (error) {
+    if (error.code === '23505' || error.message?.includes('entries_user_id_batch_id_line_no_key')) {
+      const { data: existing } = await supabase
+        .from('entries')
+        .select('*')
+        .eq('batch_id', batchId);
+      return NextResponse.json({
+        batchId,
+        entries: existing || [],
+      });
+    }
     console.error('commit_entries RPC failed:', error);
     return apiError('INTERNAL', error.message || 'Failed to commit ledger entries', 500);
   }
