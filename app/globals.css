@@ -118,7 +118,7 @@ p {
 }
 
 /* Hit slop utility expanding touch target to at least 44x44px */
-.hit-slop {
+.hit-slop:not(.absolute) {
   position: relative;
 }
 .hit-slop::after {

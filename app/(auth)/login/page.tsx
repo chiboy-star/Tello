@@ -6,7 +6,8 @@ import { createClient } from '@/lib/supabase/client';
 import { validateNextUrl } from '@/lib/url/validate-next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { PasswordInput } from '@/components/ui/password-input';
+import { Loader2 } from 'lucide-react';
 import { BrandLogo } from '@/components/brand-logo';
 
 export default function LoginPage() {
@@ -133,25 +134,16 @@ export default function LoginPage() {
                 Forgot password?
               </button>
             </div>
-            <div className="relative">
-              <Input
-                type={showPassword ? 'text' : 'password'}
+            <div>
+              <PasswordInput
                 name="password"
                 autoComplete="current-password"
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="h-10 text-xs bg-[var(--surface)] pr-10"
+                className="h-10 text-xs bg-[var(--surface)]"
                 required
               />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
-                className="absolute right-3 top-3 text-[var(--text-muted)] hover:text-[var(--text)] hit-slop"
-              >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
             </div>
           </div>
 
