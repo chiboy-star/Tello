@@ -19,6 +19,53 @@ export interface QueuedSale {
 }
 
 const QUEUE_KEY = 'tallo_offline_sales_queue';
+const ATTENTION_KEY = 'tallo_offline_needs_attention';
+
+export interface NeedsAttentionSale {
+  batchId: string;
+  sale: QueuedSale;
+  reason: string;
+  failedAt: string;
+}
+
+export async function getNeedsAttention(): Promise<NeedsAttentionSale[]> {
+  try {
+    const list = await get<NeedsAttentionSale[]>(ATTENTION_KEY);
+    return list || [];
+  } catch {
+    return [];
+  }
+}
+
+export async function removeNeedsAttentionItem(batchId: string): Promise<void> {
+  const list = await getNeedsAttention();
+  const filtered = list.filter((item) => item.batchId !== batchId);
+  await set(ATTENTION_KEY, filtered);
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('tallo-needs-attention-updated'));
+  }
+}
+
+export async function updateNeedsAttentionQty(
+  batchId: string,
+  newQty: number
+): Promise<void> {
+  const list = await getNeedsAttention();
+  const target = list.find((item) => item.batchId === batchId);
+  if (target) {
+    target.sale.entries.forEach((e) => {
+      e.quantity = newQty;
+      e.totalMinor = Math.round(newQty * e.unitAmountMinor);
+    });
+    // Remove from attention and re-enqueue to offline queue to retry commit
+    const filtered = list.filter((item) => item.batchId !== batchId);
+    await set(ATTENTION_KEY, filtered);
+    await enqueueOfflineSale(target.sale);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('tallo-needs-attention-updated'));
+    }
+  }
+}
 
 export async function getOfflineQueue(): Promise<QueuedSale[]> {
   try {
@@ -65,8 +112,38 @@ export async function flushOfflineQueue(): Promise<{ flushed: number; failed: nu
         if (res.ok) {
           flushed += 1;
         } else {
-          remaining.push(item);
-          failed += 1;
+          let errData: any = null;
+          try {
+            errData = await res.json();
+          } catch {}
+
+          if (
+            res.status === 400 ||
+            res.status === 422 ||
+            errData?.error?.code === 'INSUFFICIENT_STOCK' ||
+            errData?.code === 'INSUFFICIENT_STOCK' ||
+            errData?.message?.includes('INSUFFICIENT_STOCK')
+          ) {
+            const reason =
+              errData?.error?.message ||
+              errData?.message ||
+              'Insufficient stock available for this sale.';
+            const attentionList = await getNeedsAttention();
+            attentionList.push({
+              batchId: item.batchId,
+              sale: item,
+              reason,
+              failedAt: new Date().toISOString(),
+            });
+            await set(ATTENTION_KEY, attentionList);
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new Event('tallo-needs-attention-updated'));
+            }
+            failed += 1;
+          } else {
+            remaining.push(item);
+            failed += 1;
+          }
         }
       } catch {
         remaining.push(item);

@@ -72,6 +72,45 @@ export const POST = withAuth(async (req: NextRequest, { user: _user, supabase })
     };
   });
 
+  // Pre-check stock for sales to prevent negative stock
+  const saleLines = rpcEntries.filter((e) => e.type === 'sale' && e.item_id);
+  if (saleLines.length > 0) {
+    const requiredQty: Record<string, number> = {};
+    for (const line of saleLines) {
+      if (line.item_id) {
+        requiredQty[line.item_id] = (requiredQty[line.item_id] || 0) + (line.quantity || 0);
+      }
+    }
+    const itemIds = Object.keys(requiredQty);
+    const { data: dbItems } = await supabase
+      .from('items')
+      .select('id, name, current_qty')
+      .in('id', itemIds);
+
+    const stockErrors: string[] = [];
+    for (const it of dbItems || []) {
+      const needed = requiredQty[it.id] || 0;
+      const available = Number(it.current_qty) || 0;
+      if (available < needed) {
+        stockErrors.push(`INSUFFICIENT_STOCK: Only ${available} available for ${it.name} (requested ${needed})`);
+      }
+    }
+
+    if (stockErrors.length > 0) {
+      return NextResponse.json(
+        {
+          code: 'INSUFFICIENT_STOCK',
+          error: {
+            code: 'INSUFFICIENT_STOCK',
+            message: stockErrors.join('; '),
+            details: stockErrors,
+          },
+        },
+        { status: 400 }
+      );
+    }
+  }
+
   // Call atomic Postgres RPC commit_entries
   const { data: committed, error } = await supabase.rpc('commit_entries', {
     p_batch_id: batchId,
@@ -88,6 +127,17 @@ export const POST = withAuth(async (req: NextRequest, { user: _user, supabase })
         batchId,
         entries: existing || [],
       });
+    }
+    if (error.message?.includes('INSUFFICIENT_STOCK')) {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'INSUFFICIENT_STOCK',
+            message: error.message,
+          },
+        },
+        { status: 400 }
+      );
     }
     console.error('commit_entries RPC failed:', error);
     return apiError('INTERNAL', error.message || 'Failed to commit ledger entries', 500);

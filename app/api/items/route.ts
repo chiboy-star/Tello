@@ -183,7 +183,7 @@ export const POST = withAuth(async (req: NextRequest, { user, supabase }) => {
     sell_price_minor: sellPriceMinor,
     cost_price_minor: costPrice !== undefined && costPrice !== null ? toMinor(costPrice) : null,
     sell_price_source: sellPriceSource,
-    current_qty: 0,
+    current_qty: Math.max(0, startingQty || 0),
     reorder_lead_days: reorderLeadDays,
     aliases: finalAliases,
   };
