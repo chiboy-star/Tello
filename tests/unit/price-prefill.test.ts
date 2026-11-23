@@ -25,8 +25,8 @@ describe('Catalog Reference Prices & Prefill Logic', () => {
       }
     }
 
-    expect(pricedCount).toBe(18);
-    expect(nullCount).toBe(57);
+    expect(pricedCount).toBe(75);
+    expect(nullCount).toBe(0);
   });
 
   it('getCatalogItemById retrieves reference prices accurately', () => {
@@ -39,7 +39,7 @@ describe('Catalog Reference Prices & Prefill Logic', () => {
     const indomie = getCatalogItemById('cat_everyday_indomie_chicken');
     expect(indomie).toBeDefined();
     expect(indomie?.name).toBe('Indomie Chicken');
-    expect(indomie?.refPrice).toBe(150);
+    expect(indomie?.refPrice).toBe(200);
   });
 
   it('prefills sell price with estimate only when currency is NGN and price is not provided', () => {

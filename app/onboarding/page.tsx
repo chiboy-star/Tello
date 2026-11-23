@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +9,6 @@ import { Check, ChevronRight, Store, Package, Plus, Loader2, ArrowLeft } from 'l
 import { BrandLogo } from '@/components/brand-logo';
 
 export default function OnboardingPage() {
-  const router = useRouter();
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [businessType, setBusinessType] = useState<'retail' | 'wholesale'>('retail');
   const [shopName, setShopName] = useState('');

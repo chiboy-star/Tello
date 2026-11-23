@@ -25,7 +25,7 @@ export default function HomePage() {
   const queryClient = useQueryClient();
   const { data: itemsData, isLoading: itemsLoading, isFetching: itemsFetching, error: itemsError, refetch: refetchItems } = useItems('all');
   const { data: custData, isLoading: custLoading, isFetching: custFetching, error: custError, refetch: refetchCust } = useCustomers();
-  const { data: entriesData, isLoading: entriesLoading, isFetching: entriesFetching, error: entriesError, refetch: refetchEntries } = useEntries(50);
+  const { data: entriesData, isLoading: entriesLoading, isFetching: entriesFetching } = useEntries(50);
   const { data: checklistData } = useChecklist();
 
   const items = useMemo(() => itemsData?.items || [], [itemsData]);
@@ -132,7 +132,6 @@ export default function HomePage() {
   // Quick sell handler with optimistic update and Undo
   const handleQuickSell = async (item: any) => {
     setSellingItemId(item.id);
-    const tempId = `temp-${crypto.randomUUID()}`;
     const sellPriceMinor = item.sell_price_minor || 0;
 
     // Optimistically update item stock in query cache

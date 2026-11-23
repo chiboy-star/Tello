@@ -124,7 +124,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       window.removeEventListener('tallo-queue-updated', checkQueue);
       clearInterval(interval);
     };
-  }, []);
+  }, [queryClient]);
 
   const navLinks = [
     { href: '/home', label: 'Home', icon: House, shortcut: 'G H' },

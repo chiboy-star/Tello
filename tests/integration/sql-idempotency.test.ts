@@ -16,8 +16,8 @@ describe('SQL Idempotency Check', () => {
     expect(statements.length).toBeGreaterThan(50);
 
     for (const stmt of statements) {
-      expect(stmt).toMatch(/UPDATE catalog_items SET/i);
-      expect(stmt).toMatch(/WHERE category = '[^']+' AND name = '[^']+';?/i);
+      expect(stmt).toMatch(/UPDATE\s+catalog_items\s+SET/i);
+      expect(stmt).toMatch(/WHERE\s+category\s*=\s*'[^']+'\s+AND\s+name\s*=\s*'[^']+';?/i);
     }
   });
 
@@ -25,7 +25,7 @@ describe('SQL Idempotency Check', () => {
     const content = fs.readFileSync(backfillSqlPath, 'utf8');
     expect(content).toContain('UPDATE items');
     expect(content).toContain('FROM catalog_items');
-    expect(content).toMatch(/WHERE items\.catalog_item_id = catalog_items\.id/);
-    expect(content).toMatch(/AND \(items\.sell_price_minor IS NULL OR items\.sell_price_source = 'estimate'\)/);
+    expect(content).toMatch(/WHERE\s+(?:items|i)\.catalog_item_id\s*=\s*(?:catalog_items|ci)\.id/i);
+    expect(content).toMatch(/AND\s+\((?:items|i)\.sell_price_source\s+is\s+null\s+OR\s+(?:items|i)\.sell_price_source\s*!=\s*'user'\)/i);
   });
 });

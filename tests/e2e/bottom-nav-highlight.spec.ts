@@ -72,7 +72,6 @@ test.describe('Part 2: Bottom Navigation Highlight Geometry & Placement', () => 
               const otherItem = nav.locator(`[data-pill-id="${other.href}"]`);
               const otherBox = await otherItem.boundingBox();
               if (otherBox) {
-                const otherCenterX = otherBox.x + otherBox.width / 2;
                 expect(pillCenterX < otherBox.x || pillCenterX > otherBox.x + otherBox.width).toBe(true);
               }
             }
