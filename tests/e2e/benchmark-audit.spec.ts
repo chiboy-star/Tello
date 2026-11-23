@@ -49,6 +49,11 @@ test.describe('Part 6 Carry-Overs: Performance Benchmark & Trace Audit', () => {
     // Disable CPU throttling for tab-switch measurement
     await client.send('Emulation.setCPUThrottlingRate', { rate: 1 });
 
+    // Hide Next.js dev overlay that can intercept bottom mobile nav clicks
+    await page.addStyleTag({
+      content: 'nextjs-portal, button[aria-label*="Next.js"] { display: none !important; pointer-events: none !important; }',
+    }).catch(() => {});
+
     // 2. Measure Tab Switch Duration (Click to target heading visible, no artificial waits)
     const tabs = [
       { name: 'Stock', selector: 'a[href="/stock"]', heading: 'Stock & Inventory' },
@@ -67,7 +72,7 @@ test.describe('Part 6 Carry-Overs: Performance Benchmark & Trace Audit', () => {
       const heading = page.locator(`h1:has-text("${tab.heading}")`).first();
 
       const startTime = performance.now();
-      await tabLink.click();
+      await tabLink.click({ force: true });
       await heading.waitFor({ state: 'visible', timeout: 10000 });
       const duration = performance.now() - startTime;
       coldResults[tab.name] = Math.round(duration);
@@ -89,7 +94,7 @@ test.describe('Part 6 Carry-Overs: Performance Benchmark & Trace Audit', () => {
         const heading = page.locator(`h1:has-text("${tab.heading}")`).first();
 
         const startTime = performance.now();
-        await tabLink.click();
+        await tabLink.click({ force: true });
         await heading.waitFor({ state: 'visible', timeout: 10000 });
         const duration = performance.now() - startTime;
         warmSamples[tab.name].push(Math.round(duration));

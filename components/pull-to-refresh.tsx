@@ -126,14 +126,17 @@ export function PullToRefresh({ children }: PullToRefreshProps) {
   return (
     <div
       ref={containerRef}
+      data-pull-container="true"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
+      style={{ transform: `translateY(${pullY}px)` }}
       className="relative overscroll-y-contain"
     >
       {/* Pull To Refresh Header Indicator (Only visible when pulled or refreshing) */}
       {isStandalone && (pullY > 0 || isRefreshing) && (
         <div
+          data-pull-indicator="true"
           aria-hidden="true"
           style={{
             transform: `translateY(${pullY - 56}px)`,

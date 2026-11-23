@@ -325,7 +325,7 @@ ${report.narrative}`;
                         Status: {item.status}
                       </div>
                     </div>
-                    <span className="badge badge-low tabular-nums">
+                    <span className="text-xs font-semibold text-[var(--brand)] tabular-nums bg-[var(--brand-soft)]/40 px-2 py-0.5 rounded-[var(--r-sm)] border border-[var(--brand)]/20">
                       Order +{item.suggestedReorderQty}
                     </span>
                   </div>

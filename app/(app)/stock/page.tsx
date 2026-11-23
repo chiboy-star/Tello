@@ -766,7 +766,9 @@ export default function StockPage() {
                           )}
                         </td>
                         <td className="p-3.5 sm:px-4">
-                          <span className="badge badge-low">{act.reason || act.type}</span>
+                          <span className="text-[11px] font-medium text-[var(--text-muted)] bg-[var(--surface-2)] px-2 py-0.5 rounded-full">
+                            {act.reason || act.type}
+                          </span>
                         </td>
                         <td className="p-3.5 sm:px-4 text-[var(--text-muted)]">
                           {act.note || '—'}

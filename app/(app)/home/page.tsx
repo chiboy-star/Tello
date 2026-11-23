@@ -648,7 +648,10 @@ export default function HomePage() {
                             </Link>
                           </>
                         ) : (
-                          <span className="badge badge-low">{days}d left</span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="badge badge-low">Low</span>
+                            <span className="text-[11px] text-[var(--text-muted)] font-medium tabular-nums">{days}d left</span>
+                          </div>
                         )}
                       </div>
                     </div>
