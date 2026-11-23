@@ -57,10 +57,13 @@ test.describe('Part 6 Carry-Overs: Performance Benchmark & Trace Audit', () => {
       { name: 'Home', selector: 'a[href="/home"]', heading: 'Shop Dashboard' },
     ];
 
+    const isMobileNav = await page.locator('nav[aria-label="Mobile Navigation"]').isVisible();
+    const navScope = isMobileNav ? 'nav[aria-label="Mobile Navigation"]' : 'nav[aria-label="Desktop Navigation"]';
+
     // Cold switch measurements (first pass)
     const coldResults: Record<string, number> = {};
     for (const tab of tabs) {
-      const tabLink = page.locator(`nav[aria-label="Desktop Navigation"] ${tab.selector}`).first();
+      const tabLink = page.locator(`${navScope} ${tab.selector}`).first();
       const heading = page.locator(`h1:has-text("${tab.heading}")`).first();
 
       const startTime = performance.now();
@@ -72,7 +75,7 @@ test.describe('Part 6 Carry-Overs: Performance Benchmark & Trace Audit', () => {
 
     console.log('[PERF BENCHMARK] Tab-switch cold durations (ms):', coldResults);
 
-    // Warm switch measurements (10 iterations)
+    // Warm switch measurements (5 iterations)
     const warmSamples: Record<string, number[]> = {
       Stock: [],
       Debts: [],
@@ -82,7 +85,7 @@ test.describe('Part 6 Carry-Overs: Performance Benchmark & Trace Audit', () => {
 
     for (let i = 0; i < 5; i++) {
       for (const tab of tabs) {
-        const tabLink = page.locator(`nav[aria-label="Desktop Navigation"] ${tab.selector}`).first();
+        const tabLink = page.locator(`${navScope} ${tab.selector}`).first();
         const heading = page.locator(`h1:has-text("${tab.heading}")`).first();
 
         const startTime = performance.now();
