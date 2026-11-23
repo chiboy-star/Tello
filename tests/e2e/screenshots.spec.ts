@@ -60,7 +60,7 @@ test.describe('Design Pass Visual Verification Screenshots', () => {
     await authContext.close();
 
     const appRoutes = [
-      { name: 'home', path: '/home', waitFor: 'text=Shop Dashboard' },
+      { name: 'home', path: '/home', waitFor: 'h1:has-text("Good ")' },
       { name: 'sell', path: '/sell', waitFor: 'text=Confirm Sale' },
       { name: 'stock', path: '/stock', waitFor: 'text=Stock & Inventory' },
       { name: 'debts', path: '/debts', waitFor: 'text=Customers & Credit Ledger' },

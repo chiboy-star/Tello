@@ -1,8 +1,8 @@
 import { test, expect } from '@playwright/test';
 import { setupTestUserSession } from './auth.helper';
 
-test.describe('Part 5: Negative Stock Warning and Price Tier Estimates', () => {
-  test('negative stock warning shows on Sell and Home, allows Sell anyway, and shows Fix stock badge', async ({ page }) => {
+test.describe('Part 5: Stock Guard and Price Tier Estimates', () => {
+  test('0-stock item shows Out badge with Add stock button, prevents negative sell, and shows price tiers', async ({ page }) => {
     test.setTimeout(90000);
     await setupTestUserSession(page);
 
@@ -28,36 +28,46 @@ test.describe('Part 5: Negative Stock Warning and Price Tier Estimates', () => {
 
     // 2. Open /home and verify "est." marker is displayed
     await page.goto('/home');
-    await page.waitForSelector('h1:has-text("Shop Dashboard")', { timeout: 15000 });
+    await page.waitForSelector('h1:has-text("Good ")', { timeout: 15000 });
 
-    const itemTile = page.locator(`button:has-text("${uniqueName}")`).first();
+    const itemTile = page.locator(`div:has-text("${uniqueName}")`).filter({ has: page.locator('text=Out') }).first();
     await expect(itemTile).toBeVisible({ timeout: 10000 });
 
     // Assert "est." marker appears on the tile
-    const estMarker = itemTile.getByText('est.', { exact: true });
+    const estMarker = itemTile.getByText('est.', { exact: true }).first();
     await expect(estMarker).toBeVisible({ timeout: 5000 });
 
-    // 3. Tap quick-sell item with 0 stock -> should show Stock Warning modal
-    await itemTile.click();
-    const warningModal = page.locator('div[role="dialog"]:has-text("Stock Warning")');
-    await expect(warningModal).toBeVisible({ timeout: 5000 });
-    await expect(warningModal).toContainText('left in stock');
-    await expect(warningModal).toContainText('Logging this sale will take your stock into negative count');
+    // 3. 0-stock quick-sell tile is disabled: contains "Out" badge and amber outline "Add stock" button
+    const addStockBtn = itemTile.locator('a:has-text("Add stock")').first();
+    await expect(addStockBtn).toBeVisible({ timeout: 5000 });
+    await expect(addStockBtn).toHaveAttribute('href', /stock.*action=adjust/);
 
-    // Cancel first
-    await warningModal.locator('button:has-text("Cancel")').click();
-    await expect(warningModal).not.toBeVisible();
+    // 4. Verify stock cannot go below zero via API
+    const negativeRes = await page.evaluate(async (name) => {
+      // Find item id
+      const itemsRes = await fetch('/api/items');
+      const itemsData = await itemsRes.json();
+      const targetItem = (itemsData.items || itemsData).find((i: any) => i.name === name);
+      if (!targetItem) return { status: 404 };
 
-    // Click again and confirm "Sell anyway"
-    await itemTile.click();
-    await expect(warningModal).toBeVisible();
-    await warningModal.locator('button:has-text("Sell anyway")').click();
-    await expect(warningModal).not.toBeVisible();
+      const commitRes = await fetch('/api/entries/commit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          entries: [{
+            type: 'sale',
+            itemId: targetItem.id,
+            quantity: 5,
+            unitAmount: 1500,
+            paymentType: 'cash',
+          }]
+        }),
+      });
+      return { status: commitRes.status, body: await commitRes.json() };
+    }, uniqueName);
 
-    // 4. Verify "Fix stock" badge appears on Running Low section on Home
-    const fixStockBadge = page.locator('a:has-text("Fix stock")').first();
-    await expect(fixStockBadge).toBeVisible({ timeout: 10000 });
-    await expect(fixStockBadge).toHaveAttribute('href', '/stock');
+    expect(negativeRes.status).toBe(400);
+    expect(negativeRes.body?.code).toBe('INSUFFICIENT_STOCK');
 
     // 5. Navigate to /stock/prices and verify confidence tiers are displayed
     await page.goto('/stock/prices');

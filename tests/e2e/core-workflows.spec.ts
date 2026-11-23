@@ -13,19 +13,22 @@ test.describe('E2E #2, #6, #9: Tap Sell & Undo, Debt Payment, Command Menu', () 
   test('E2E #2: Tap-sell an item, see stock decrease, press Undo, see stock restored', async ({ page }) => {
     test.setTimeout(60000);
     await page.goto('/sell');
-    await page.waitForSelector('text=Confirm Sale', { timeout: 10000 });
+    await page.waitForSelector('h1:has-text("Record Sale")', { timeout: 10000 });
 
-    // Locate the first item card and read its initial stock
-    const itemCard = page.locator('div.cursor-pointer').first();
+    // Locate the first available in-stock item card
+    const itemCard = page.locator('[data-item-tile="true"]').first();
     await expect(itemCard).toBeVisible();
     const initialText = await itemCard.innerText();
-    const stockMatch = initialText.match(/Stock:\s*(-?\d+(\.\d+)?)/);
+    const stockMatch = initialText.match(/(\d+(\.\d+)?)\s*\w*\s*left/);
     const initialStock = stockMatch ? parseFloat(stockMatch[1]) : 0;
 
     // Click item card to select it
     await itemCard.click();
 
-    // Confirm sale of 1 unit
+    // Click "Record sale" in summary bar
+    await page.click('button:has-text("Record sale")');
+
+    // Confirm sale of 1 unit in drawer
     await page.click('button:has-text("Confirm Sale")');
 
     // Verify Undo toast appears and stock decreased by 1
@@ -33,7 +36,7 @@ test.describe('E2E #2, #6, #9: Tap Sell & Undo, Debt Payment, Command Menu', () 
     await expect(undoToast).toBeVisible();
 
     const decrementedText = await itemCard.innerText();
-    const decrementedStock = parseFloat(decrementedText.match(/Stock:\s*(-?\d+(\.\d+)?)/)?.[1] || '0');
+    const decrementedStock = parseFloat(decrementedText.match(/(\d+(\.\d+)?)\s*\w*\s*left/)?.[1] || '0');
     expect(decrementedStock).toBe(initialStock - 1);
 
     // Click Undo
@@ -41,17 +44,31 @@ test.describe('E2E #2, #6, #9: Tap Sell & Undo, Debt Payment, Command Menu', () 
 
     // Verify Undo toast is dismissed and stock is restored
     await expect(undoToast).not.toBeVisible();
-    const restoredText = await itemCard.innerText();
-    const restoredStock = parseFloat(restoredText.match(/Stock:\s*(-?\d+(\.\d+)?)/)?.[1] || '0');
-    expect(restoredStock).toBe(initialStock);
+    await expect(itemCard).toContainText(`${initialStock}`);
   });
 
   test('E2E #6: Record a debt payment; balance updates', async ({ page }) => {
     test.setTimeout(60000);
+    // Check initial balance if customer already exists in ledger
+    await page.goto('/debts');
+    await page.waitForLoadState('networkidle').catch(() => {});
+    let prevBalance = 0;
+    const existingRow = page.locator('tbody tr', { hasText: 'Mama Ngozi' });
+    try {
+      await existingRow.waitFor({ state: 'visible', timeout: 3000 });
+      const rowText = await existingRow.innerText();
+      const match = rowText.match(/₦([\d,]+)/);
+      if (match) {
+        prevBalance = parseInt(match[1].replace(/,/g, ''), 10);
+      }
+    } catch {
+      prevBalance = 0;
+    }
+
     // 1. Record a credit sale to create customer debt
     await page.goto('/sell');
     await page.click('button:has-text("Type")');
-    await page.fill('input[placeholder*="3 Indomie"]', '2 rice 5000 credit Mama Ngozi');
+    await page.fill('input[placeholder*="Describe transaction"]', '2 rice 5000 credit Mama Ngozi');
     await page.click('button:has-text("Parse")');
 
     await expect(page.locator('text=Confirm Entries')).toBeVisible({ timeout: 20000 });
@@ -69,15 +86,16 @@ test.describe('E2E #2, #6, #9: Tap Sell & Undo, Debt Payment, Command Menu', () 
     await page.fill('input[placeholder="e.g. 5000"]', '2000');
     await page.click('button:has-text("Confirm Payment")');
 
-    // 4. Verify balance updates
+    // 4. Verify balance updates (initial + 5000 credit - 2000 payment = initial + 3000)
     await expect(page.locator('text=Record Payment: Mama Ngozi')).not.toBeVisible();
     await expect(page.locator('text=Mama Ngozi')).toBeVisible();
-    await expect(page.locator('tbody tr', { hasText: 'Mama Ngozi' })).toContainText('3,000');
+    const expectedFinal = (prevBalance + 3000).toLocaleString();
+    await expect(page.locator('tbody tr', { hasText: 'Mama Ngozi' })).toContainText(expectedFinal);
   });
 
   test('E2E #9: Command menu opens with Ctrl+K, finds an item', async ({ page }) => {
     await page.goto('/home');
-    await page.waitForSelector('text=Shop Dashboard', { timeout: 10000 });
+    await page.waitForSelector('h1:has-text("Good ")', { timeout: 10000 });
 
     // Trigger Ctrl+K
     await page.keyboard.press('Control+k');
@@ -99,17 +117,21 @@ test.describe('E2E #2, #6, #9: Tap Sell & Undo, Debt Payment, Command Menu', () 
 
   test('Type mode structured quick form records sale with idempotency key and updates stock', async ({ page }) => {
     await page.goto('/sell');
-    await page.waitForSelector('text=Confirm Sale', { timeout: 10000 });
+    await page.waitForSelector('h1:has-text("Record Sale")', { timeout: 10000 });
 
     // Switch to Type mode
     await page.click('button:has-text("Type")');
     await expect(page.locator('text=Structured Quick Sale')).toBeVisible();
 
-    // Select the first item in the item dropdown
-    const itemSelect = page.locator('select').first();
-    const firstItemOption = await itemSelect.locator('option').nth(1).getAttribute('value');
-    expect(firstItemOption).toBeTruthy();
-    await itemSelect.selectOption(firstItemOption!);
+    // Select the first item in the item Combobox
+    const comboboxTrigger = page.locator('button:has-text("Choose item...")');
+    await expect(comboboxTrigger).toBeVisible();
+    await comboboxTrigger.click();
+
+    // Wait for popover or drawer option and select the first item
+    const firstOption = page.locator('[role="option"]').first();
+    await expect(firstOption).toBeVisible({ timeout: 5000 });
+    await firstOption.click();
 
     // Set Quantity to 2
     const qtyInput = page.locator('input[type="number"]').first();
@@ -120,7 +142,7 @@ test.describe('E2E #2, #6, #9: Tap Sell & Undo, Debt Payment, Command Menu', () 
     await priceInput.fill('500');
 
     // Click Record Sale
-    await page.click('button:has-text("Record Sale")');
+    await page.click('button[type="submit"]:has-text("Record Sale")');
 
     // Verify Undo toast appears confirming successful commit
     await expect(page.locator('text=Sale recorded successfully')).toBeVisible();

@@ -29,7 +29,7 @@ test.describe('Part 3: Tab-Switch Timing & Instant Navigation Benchmark', () => 
       { href: '/sell', selector: 'h1:has-text("Record Sale")' },
       { href: '/debts', selector: 'h1:has-text("Customers & Credit Ledger")' },
       { href: '/reports', selector: 'h1:has-text("Business Reports")' },
-      { href: '/home', selector: 'h1:has-text("Shop Dashboard")' },
+      { href: '/home', selector: 'h1:has-text("Good ")' },
     ];
 
     // 2. Cold navigation benchmark (first visit to each tab from cold cache)

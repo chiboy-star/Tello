@@ -27,7 +27,7 @@ test.describe('Part 6 Carry-Overs: Performance Benchmark & Trace Audit', () => {
     });
 
     await page.goto('/home');
-    await page.waitForSelector('h1:has-text("Shop Dashboard")', { timeout: 15000 });
+    await page.waitForSelector('h1:has-text("Good ")', { timeout: 15000 });
     // Let page settle for 1 second
     await page.waitForTimeout(1000);
 
@@ -54,7 +54,7 @@ test.describe('Part 6 Carry-Overs: Performance Benchmark & Trace Audit', () => {
       { name: 'Stock', selector: 'a[href="/stock"]', heading: 'Stock & Inventory' },
       { name: 'Debts', selector: 'a[href="/debts"]', heading: 'Customers & Credit Ledger' },
       { name: 'Reports', selector: 'a[href="/reports"]', heading: 'Business Reports' },
-      { name: 'Home', selector: 'a[href="/home"]', heading: 'Shop Dashboard' },
+      { name: 'Home', selector: 'a[href="/home"]', heading: 'Good ' },
     ];
 
     const isMobileNav = await page.locator('nav[aria-label="Mobile Navigation"]').isVisible();
