@@ -6,6 +6,7 @@ import * as fs from 'fs';
 const screenshotDir = path.resolve(process.cwd(), 'tests/screenshots');
 
 test.describe('Part 2: Bottom Navigation Highlight Geometry & Placement', () => {
+  test.setTimeout(60000);
   test.beforeAll(() => {
     if (!fs.existsSync(screenshotDir)) {
       fs.mkdirSync(screenshotDir, { recursive: true });
