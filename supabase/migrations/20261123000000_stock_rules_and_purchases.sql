@@ -15,12 +15,69 @@ ALTER TABLE entries
   ADD COLUMN IF NOT EXISTS cost_per_pack_minor BIGINT,
   ADD COLUMN IF NOT EXISTS supplier TEXT;
 
--- 2. Extend items table schema for usual packs
+-- 2. Extend items table schema for usual packs and non-negative stock constraint
 ALTER TABLE items
   ADD COLUMN IF NOT EXISTS usual_pack_type TEXT,
   ADD COLUMN IF NOT EXISTS usual_units_per_pack NUMERIC(12,2);
 
--- 3. Update commit_entries RPC with row locks (FOR UPDATE) and strict INSUFFICIENT_STOCK guard
+ALTER TABLE items DROP CONSTRAINT IF EXISTS items_current_qty_non_negative;
+ALTER TABLE items ADD CONSTRAINT items_current_qty_non_negative CHECK (current_qty >= 0);
+
+-- 3. Dedicated Purchases table
+CREATE TABLE IF NOT EXISTS purchases (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  item_id UUID NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+  supplier TEXT,
+  pack_type TEXT NOT NULL DEFAULT 'carton',
+  pack_count NUMERIC(12,2) NOT NULL CHECK (pack_count > 0),
+  units_per_pack NUMERIC(12,2) NOT NULL CHECK (units_per_pack > 0),
+  units_added NUMERIC(12,2) NOT NULL CHECK (units_added > 0),
+  cost_per_pack_minor BIGINT NOT NULL CHECK (cost_per_pack_minor >= 0),
+  total_cost_minor BIGINT NOT NULL CHECK (total_cost_minor >= 0),
+  batch_id UUID NOT NULL DEFAULT gen_random_uuid(),
+  voided_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE purchases ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users own purchases" ON purchases;
+CREATE POLICY "Users own purchases"
+  ON purchases FOR ALL
+  TO authenticated
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE INDEX IF NOT EXISTS idx_purchases_user_item ON purchases(user_id, item_id, created_at DESC);
+
+-- 4. Dedicated Stock Activity Audit Log table
+CREATE TABLE IF NOT EXISTS stock_activity (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  item_id UUID NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+  action TEXT NOT NULL CHECK (action IN ('adjustment', 'restock', 'sale', 'void')),
+  reason TEXT,
+  before_qty NUMERIC(12,2) NOT NULL,
+  after_qty NUMERIC(12,2) NOT NULL,
+  delta NUMERIC(12,2) NOT NULL,
+  note TEXT,
+  batch_id UUID,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE stock_activity ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users own stock activity" ON stock_activity;
+CREATE POLICY "Users own stock activity"
+  ON stock_activity FOR ALL
+  TO authenticated
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE INDEX IF NOT EXISTS idx_stock_activity_user_item ON stock_activity(user_id, item_id, created_at DESC);
+
+-- 5. Update commit_entries RPC with row locks (FOR UPDATE), strict INSUFFICIENT_STOCK guard, and activity logging
 CREATE OR REPLACE FUNCTION commit_entries(p_batch_id UUID, p_entries JSONB)
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -52,6 +109,8 @@ DECLARE
   v_new_entry entries%ROWTYPE;
   v_current_qty NUMERIC;
   v_item_name TEXT;
+  v_before NUMERIC;
+  v_after NUMERIC;
 BEGIN
   IF v_user_id IS NULL THEN
     RAISE EXCEPTION 'Unauthenticated' USING errcode = '42501';
@@ -144,14 +203,27 @@ BEGIN
         p_batch_id, v_idx
       ) RETURNING * INTO v_new_entry;
 
-      -- Update items stock
+      -- Update items stock and record activity
       IF v_type = 'sale' AND v_item_id IS NOT NULL THEN
+        SELECT current_qty INTO v_before FROM items WHERE id = v_item_id AND user_id = v_user_id;
+        v_after := v_before - v_qty;
+        
         UPDATE items
-        SET current_qty = current_qty - v_qty, updated_at = now()
+        SET current_qty = v_after, updated_at = now()
         WHERE id = v_item_id AND user_id = v_user_id;
+
+        INSERT INTO stock_activity (
+          user_id, item_id, action, reason, before_qty, after_qty, delta, note, batch_id
+        ) VALUES (
+          v_user_id, v_item_id, 'sale', 'Sale', v_before, v_after, -v_qty, v_note, p_batch_id
+        );
+
       ELSIF v_type = 'restock' AND v_item_id IS NOT NULL THEN
+        SELECT current_qty INTO v_before FROM items WHERE id = v_item_id AND user_id = v_user_id;
+        v_after := v_before + v_qty;
+
         UPDATE items
-        SET current_qty = current_qty + v_qty,
+        SET current_qty = v_after,
             cost_price_minor = COALESCE(
               CASE WHEN v_units_per_pack IS NOT NULL AND v_units_per_pack > 0 AND v_cost_per_pack IS NOT NULL
                 THEN ROUND(v_cost_per_pack / v_units_per_pack)
@@ -163,6 +235,23 @@ BEGIN
             usual_units_per_pack = COALESCE(v_units_per_pack, usual_units_per_pack),
             updated_at = now()
         WHERE id = v_item_id AND user_id = v_user_id;
+
+        -- Record in purchases table
+        INSERT INTO purchases (
+          user_id, item_id, supplier, pack_type, pack_count, units_per_pack,
+          units_added, cost_per_pack_minor, total_cost_minor, batch_id
+        ) VALUES (
+          v_user_id, v_item_id, v_supplier, COALESCE(v_pack_type, 'unit'),
+          COALESCE(v_pack_count, v_qty), COALESCE(v_units_per_pack, 1),
+          v_qty, COALESCE(v_cost_per_pack, v_unit_amount, 0), v_total, p_batch_id
+        );
+
+        -- Record in stock activity log
+        INSERT INTO stock_activity (
+          user_id, item_id, action, reason, before_qty, after_qty, delta, note, batch_id
+        ) VALUES (
+          v_user_id, v_item_id, 'restock', 'Purchased', v_before, v_after, v_qty, v_note, p_batch_id
+        );
       END IF;
 
       v_inserted_rows := v_inserted_rows || to_jsonb(v_new_entry);
@@ -179,7 +268,7 @@ BEGIN
 END;
 $$;
 
--- 4. Update adjust_stock RPC with reasons and min=0 constraint
+-- 6. Update adjust_stock RPC with reasons, min=0 constraint, and stock_activity logging
 CREATE OR REPLACE FUNCTION adjust_stock(
   p_item_id UUID,
   p_new_qty NUMERIC,
@@ -230,6 +319,13 @@ BEGIN
     v_user_id, 'adjustment', p_item_id, ABS(v_diff), 0, 0,
     'cash', now(), 'tap', p_note, p_reason, v_old_qty, p_new_qty,
     v_batch_id, 0
+  );
+
+  -- Record in stock_activity log
+  INSERT INTO stock_activity (
+    user_id, item_id, action, reason, before_qty, after_qty, delta, note, batch_id
+  ) VALUES (
+    v_user_id, p_item_id, 'adjustment', p_reason, v_old_qty, p_new_qty, v_diff, p_note, v_batch_id
   );
 
   UPDATE items
