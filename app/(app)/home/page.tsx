@@ -11,111 +11,168 @@ import {
   RotateCcw,
   Check,
   TrendingUp,
-  Plus
+  Plus,
+  PackagePlus,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatMoney } from '@/lib/domain/money';
 import { useQueryClient } from '@tanstack/react-query';
-import { useItems, useCustomers, useEntries, useChecklist } from '@/lib/query/hooks';
+import { useItems, useCustomers, useEntries, useDashboard } from '@/lib/query/hooks';
+import dynamic from 'next/dynamic';
 import { HomeSkeleton } from '@/components/skeletons';
-import { PriceSheet } from '@/components/price-sheet';
+const PriceSheet = dynamic(() => import('@/components/price-sheet').then((mod) => mod.PriceSheet), { ssr: false });
 import { SectionRetryCard } from '@/components/ui/section-retry-card';
+import { invalidateAfterMutation, optimisticUpdateOnSale } from '@/lib/query/invalidate';
+import { 
+  getNeedsAttention, 
+  removeNeedsAttentionItem, 
+  updateNeedsAttentionQty, 
+  NeedsAttentionSale 
+} from '@/lib/offline/queue';
 
 export default function HomePage() {
   const queryClient = useQueryClient();
   const { data: itemsData, isLoading: itemsLoading, isFetching: itemsFetching, error: itemsError, refetch: refetchItems } = useItems('all');
   const { data: custData, isLoading: custLoading, isFetching: custFetching, error: custError, refetch: refetchCust } = useCustomers();
-  const { data: entriesData, isLoading: entriesLoading, isFetching: entriesFetching } = useEntries(50);
-  const { data: checklistData } = useChecklist();
+  const { isFetching: entriesFetching } = useEntries(50);
+  const { data: dashData, isLoading: dashLoading, isFetching: dashFetching, refetch: refetchDash } = useDashboard();
 
   const items = useMemo(() => itemsData?.items || [], [itemsData]);
   const customers = useMemo(() => custData?.customers || [], [custData]);
-  const entries = useMemo(() => entriesData?.entries || [], [entriesData]);
 
-  // If cached data exists from IndexedDB/memory, render immediately without skeleton!
-  const hasData = itemsData !== undefined || custData !== undefined || entriesData !== undefined;
-  const loading = !hasData && (itemsLoading || custLoading || entriesLoading);
-  const isRefreshing = hasData && (itemsFetching || custFetching || entriesFetching);
+  // If cached data exists from TanStack cache or IndexedDB, render immediately without skeleton!
+  const hasData = itemsData !== undefined || custData !== undefined || dashData !== undefined;
+  const loading = !hasData && (itemsLoading || custLoading || dashLoading);
+  const isRefreshing = hasData && (itemsFetching || custFetching || dashFetching || entriesFetching);
 
-  const [lastUpdated, setLastUpdated] = useState<number>(() => Date.now());
-  const [minutesAgo, setMinutesAgo] = useState(0);
   const [undoEntryId, setUndoEntryId] = useState<string | null>(null);
   const [undoMessage, setUndoMessage] = useState<string | null>(null);
   const [undoTimeout, setUndoTimeout] = useState<NodeJS.Timeout | null>(null);
   const [sellingItemId, setSellingItemId] = useState<string | null>(null);
 
+  // Offline sales needing attention (e.g. rejected due to insufficient stock)
+  const [needsAttention, setNeedsAttention] = useState<NeedsAttentionSale[]>([]);
+
+  const loadNeedsAttention = useCallback(async () => {
+    const list = await getNeedsAttention();
+    setNeedsAttention(list);
+  }, []);
+
+  useEffect(() => {
+    loadNeedsAttention();
+    const handleUpdated = () => loadNeedsAttention();
+    window.addEventListener('tallo-needs-attention-updated', handleUpdated);
+    window.addEventListener('tallo-queue-updated', handleUpdated);
+    return () => {
+      window.removeEventListener('tallo-needs-attention-updated', handleUpdated);
+      window.removeEventListener('tallo-queue-updated', handleUpdated);
+    };
+  }, [loadNeedsAttention]);
+
+  const handleDiscardAttention = async (batchId: string) => {
+    await removeNeedsAttentionItem(batchId);
+    await loadNeedsAttention();
+  };
+
+  const handleEditAttentionQty = async (item: NeedsAttentionSale) => {
+    const currentQty = item.sale.entries[0]?.quantity || 1;
+    const promptVal = window.prompt(`Update sale quantity (currently ${currentQty}):`, String(currentQty));
+    if (promptVal === null) return;
+    const parsed = parseFloat(promptVal);
+    if (!isNaN(parsed) && parsed > 0) {
+      await updateNeedsAttentionQty(item.batchId, parsed);
+      await loadNeedsAttention();
+    }
+  };
+
   // Set Price Drawer
   const [priceSheetItem, setPriceSheetItem] = useState<any | null>(null);
   const [priceSheetOpen, setPriceSheetOpen] = useState(false);
 
-  // Negative stock confirmation dialog
-  const [negativeStockConfirmItem, setNegativeStockConfirmItem] = useState<any | null>(null);
-
-  const loadDashboard = useCallback(async (_showSpinner?: boolean) => {
+  // Manual refresh callback
+  const handleRefresh = useCallback(async () => {
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['items'] }),
-      queryClient.invalidateQueries({ queryKey: ['customers'] }),
-      queryClient.invalidateQueries({ queryKey: ['entries'] }),
-      queryClient.invalidateQueries({ queryKey: ['checklist'] }),
+      refetchDash(),
+      refetchItems(),
+      refetchCust(),
     ]);
-    setLastUpdated(Date.now());
-    setMinutesAgo(0);
-  }, [queryClient]);
+  }, [refetchDash, refetchItems, refetchCust]);
 
+  // Today's totals directly from unified server dashboard API
+  const todaySalesAmountMinor = dashData?.today?.revenueMinor ?? 0;
+  const todaySalesCount = dashData?.today?.salesCount ?? 0;
+  const todayCreditGivenMinor = dashData?.today?.creditGivenMinor ?? 0;
+
+  // Header Greeting & Date
+  const timezone = dashData?.profile?.timezone || dashData?.today?.timezone || 'Africa/Lagos';
+  let hour = 12;
+  try {
+    const nowInTz = new Date(new Date().toLocaleString('en-US', { timeZone: timezone }));
+    hour = nowInTz.getHours();
+  } catch {
+    hour = new Date().getHours();
+  }
+
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  const firstName = dashData?.profile?.fullName
+    ? dashData.profile.fullName.trim().split(' ')[0]
+    : dashData?.profile?.shopName || 'Shop Owner';
+  const greetingTitle = `${greeting}, ${firstName}`;
+  const shopName = dashData?.profile?.shopName || 'Tallo Shop';
+
+  let formattedDate = 'Today';
+  try {
+    formattedDate = new Intl.DateTimeFormat('en-GB', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      timeZone: timezone,
+    }).format(new Date());
+  } catch {
+    formattedDate = new Intl.DateTimeFormat('en-GB', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+    }).format(new Date());
+  }
+
+  // Synchronize document title with personalized greeting
   useEffect(() => {
-    loadDashboard();
-  }, [loadDashboard]);
+    if (typeof document !== 'undefined') {
+      document.title = `${greetingTitle} | Tallo`;
+    }
+  }, [greetingTitle]);
 
-  // Update minutes ago on a 60s interval
-  useEffect(() => {
-    const timer = setInterval(() => {
-      if (lastUpdated > 0) {
-        setMinutesAgo(Math.max(0, Math.floor((Date.now() - lastUpdated) / 60000)));
-      }
-    }, 60000);
-    return () => clearInterval(timer);
-  }, [lastUpdated]);
-
-  // Today's totals (sales amount, count, credit given)
-  const [todayStr, setTodayStr] = useState('');
-
-  useEffect(() => {
-    setTodayStr(new Date().toISOString().split('T')[0]);
-  }, []);
-
-  const todaySales = entries.filter((e: any) => {
-    return e.type === 'sale' && !e.voided_at && (todayStr ? e.occurred_at?.startsWith(todayStr) : true);
-  });
-
-  const todaySalesAmountMinor = todaySales.reduce((acc: number, e: any) => acc + (Number(e.total_minor) || 0), 0);
-  const todaySalesCount = todaySales.length;
-  const todayCreditGivenMinor = todaySales
-    .filter((e: any) => e.payment_type === 'credit')
-    .reduce((acc: number, e: any) => acc + (Number(e.total_minor) || 0), 0);
-
-  // Top 3 running low (prioritize negative stock items)
-  const runningLow = items
-    .filter((i: any) => Number(i.current_qty) < 0 || (i.forecast?.daysLeft !== null && i.forecast?.daysLeft <= 7))
-    .sort((a: any, b: any) => {
-      const aNeg = Number(a.current_qty) < 0 ? 1 : 0;
-      const bNeg = Number(b.current_qty) < 0 ? 1 : 0;
-      if (aNeg !== bNeg) return bNeg - aNeg; // Negative items come first
-      return (a.forecast?.daysLeft ?? 0) - (b.forecast?.daysLeft ?? 0);
-    })
-    .slice(0, 3);
+  // Top 3 running low
+  const runningLow = useMemo(() => {
+    return items
+      .filter((i: any) => Number(i.current_qty) <= 0 || (i.forecast?.daysLeft !== null && i.forecast?.daysLeft <= 7))
+      .sort((a: any, b: any) => {
+        const aOut = Number(a.current_qty) <= 0 ? 1 : 0;
+        const bOut = Number(b.current_qty) <= 0 ? 1 : 0;
+        if (aOut !== bOut) return bOut - aOut;
+        return (a.forecast?.daysLeft ?? 0) - (b.forecast?.daysLeft ?? 0);
+      })
+      .slice(0, 3);
+  }, [items]);
 
   // Top 3 debtors
-  const topDebtors = customers
-    .filter((c: any) => c.balanceMinor > 0)
-    .sort((a: any, b: any) => b.balanceMinor - a.balanceMinor)
-    .slice(0, 3);
+  const topDebtors = useMemo(() => {
+    return customers
+      .filter((c: any) => c.balanceMinor > 0)
+      .sort((a: any, b: any) => b.balanceMinor - a.balanceMinor)
+      .slice(0, 3);
+  }, [customers]);
 
   // Quick sell items (most recent 4 items)
-  const quickSellItems = [...items]
-    .sort((a: any, b: any) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
-    .slice(0, 4);
+  const quickSellItems = useMemo(() => {
+    return [...items]
+      .sort((a: any, b: any) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
+      .slice(0, 4);
+  }, [items]);
 
-  // Setup checklist items driven strictly by server /api/checklist
+  // Setup checklist items driven strictly by unified server dashboard API
+  const checklistData = dashData?.checklist;
   const checklistRaw = [
     { key: 'addItems', label: 'Add at least 5 items', done: !!checklistData?.steps?.addItems, action: 'add-item' },
     { key: 'reviewPrices', label: 'Review your prices', done: !!checklistData?.steps?.reviewPrices, href: '/stock/prices' },
@@ -131,18 +188,26 @@ export default function HomePage() {
 
   // Quick sell handler with optimistic update and Undo
   const handleQuickSell = async (item: any) => {
+    if (Number(item.current_qty) <= 0) return; // Disallow selling zero or negative stock
     setSellingItemId(item.id);
     const sellPriceMinor = item.sell_price_minor || 0;
 
-    // Optimistically update item stock in query cache
+    // 1. Optimistically update item stock in query cache
     queryClient.setQueryData(['items', 'all'], (old: any) => {
       if (!old || !old.items) return old;
       return {
         ...old,
         items: old.items.map((i: any) =>
-          i.id === item.id ? { ...i, current_qty: Number(i.current_qty) - 1 } : i
+          i.id === item.id ? { ...i, current_qty: Math.max(0, Number(i.current_qty) - 1) } : i
         ),
       };
+    });
+
+    // 2. Optimistically update dashboard revenue and count in query cache
+    optimisticUpdateOnSale(queryClient, {
+      totalMinor: sellPriceMinor,
+      paymentType: 'cash',
+      isCredit: false,
     });
 
     try {
@@ -177,20 +242,12 @@ export default function HomePage() {
           setUndoMessage(null);
         }, 8000);
         setUndoTimeout(timeout);
-        
-        // Refresh entry list in background
-        loadDashboard();
-        queryClient.invalidateQueries({ queryKey: ['checklist'] });
-      } else {
-        // Rollback
-        loadDashboard();
-        queryClient.invalidateQueries({ queryKey: ['checklist'] });
       }
     } catch {
-      loadDashboard();
-      queryClient.invalidateQueries({ queryKey: ['checklist'] });
+      // Rollback will be handled on settle
     } finally {
       setSellingItemId(null);
+      await invalidateAfterMutation(queryClient, 'quick_sell');
     }
   };
 
@@ -203,21 +260,12 @@ export default function HomePage() {
 
     try {
       await fetch(`/api/entries/${idToVoid}/void`, { method: 'POST' });
-      await loadDashboard();
-      queryClient.invalidateQueries({ queryKey: ['checklist'] });
     } catch (err) {
       console.error('Failed to undo sale:', err);
+    } finally {
+      await invalidateAfterMutation(queryClient, 'void');
     }
   };
-
-  // Greeting
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-  const formattedDate = new Intl.DateTimeFormat('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-  }).format(new Date());
 
   if (loading) {
     return <HomeSkeleton />;
@@ -225,25 +273,23 @@ export default function HomePage() {
 
   return (
     <div className="space-y-6">
-      {/* Header: Greeting + Date + Quick Actions */}
+      {/* Header: Personalized Greeting + Shop Name + Date (Part 7) */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
             <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text)]">
-              Shop Dashboard
+              {greetingTitle}
             </h1>
-            <span className="text-xs text-[var(--text-muted)] font-medium">
-              • {greeting}
-            </span>
           </div>
-          <div className="flex items-center gap-2 mt-1 text-xs text-[var(--text-muted)]">
+          <div className="flex items-center gap-2 mt-1 text-xs text-[var(--text-muted)] font-medium">
+            <span>{shopName}</span>
+            <span>·</span>
             <span>{formattedDate}</span>
-            <span>•</span>
-            <span>Updated {minutesAgo}m ago</span>
             <button
-              onClick={() => loadDashboard(true)}
+              onClick={handleRefresh}
               aria-label="Refresh dashboard data"
-              className="p-1 rounded hover:bg-[var(--surface-2)] text-[var(--text-muted)] hover:text-[var(--text)] transition-colors hit-slop"
+              title="Refresh dashboard data"
+              className="hidden md:inline-flex p-1 rounded hover:bg-[var(--surface-2)] text-[var(--text-muted)] hover:text-[var(--text)] transition-colors hit-slop"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
             </button>
@@ -259,6 +305,51 @@ export default function HomePage() {
           </Link>
         </div>
       </div>
+
+      {/* Needs Attention Card for Offline Failed Sales (Part 2) */}
+      {needsAttention.length > 0 && (
+        <section aria-labelledby="needs-attention-heading" className="bg-[var(--accent-soft)]/20 border border-[var(--warning)]/60 rounded-[var(--r-md)] p-4 sm:p-5">
+          <div className="flex items-center gap-2 pb-2 border-b border-[var(--warning)]/30">
+            <AlertTriangle className="w-4 h-4 text-[var(--warning)]" />
+            <h2 id="needs-attention-heading" className="font-display text-sm font-semibold text-[var(--text)]">
+              Needs Attention ({needsAttention.length})
+            </h2>
+          </div>
+          <p className="text-xs text-[var(--text-muted)] mt-1.5">
+            Offline sales that could not be synced because stock was insufficient:
+          </p>
+          <div className="mt-3 divide-y divide-[var(--border)]">
+            {needsAttention.map((att) => (
+              <div key={att.batchId} className="py-2.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div>
+                  <div className="font-semibold text-xs text-[var(--text)]">
+                    {att.sale.entries.map((e) => `${e.quantity}× ${e.newItemName || 'Item'}`).join(', ')}
+                  </div>
+                  <div className="text-[11px] text-[var(--warning)] mt-0.5">{att.reason}</div>
+                </div>
+                <div className="flex items-center gap-2 self-end sm:self-auto">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs border-[var(--warning)] text-[var(--warning)]"
+                    onClick={() => handleEditAttentionQty(att)}
+                  >
+                    Edit quantity
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs text-[var(--danger)] hover:bg-[var(--danger-soft)]"
+                    onClick={() => handleDiscardAttention(att.batchId)}
+                  >
+                    Discard
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Today's Totals Strip */}
       <section aria-labelledby="today-strip-heading" className="space-y-2">
@@ -401,6 +492,40 @@ export default function HomePage() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
             {quickSellItems.map((item: any) => {
               const hasPrice = item.sell_price_minor !== null && item.sell_price_minor > 0;
+              const isOutOfStock = Number(item.current_qty) <= 0;
+
+              if (isOutOfStock) {
+                return (
+                  <div
+                    key={item.id}
+                    className="p-3 rounded-[var(--r-md)] border border-[var(--border)] bg-[var(--surface-2)]/40 text-left flex flex-col justify-between min-h-[88px] opacity-80"
+                  >
+                    <div>
+                      <div className="font-medium text-xs text-[var(--text-muted)] line-clamp-1">{item.name}</div>
+                      <div className="text-[11px] text-[var(--danger)] mt-0.5 font-semibold">
+                        Out of stock
+                      </div>
+                    </div>
+                    <div className="mt-2 flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-[var(--text-muted)] inline-flex items-center gap-1">
+                        {hasPrice ? formatMoney(item.sell_price_minor) : 'No price'}
+                        {item.sell_price_source === 'estimate' && (
+                          <span className="text-[9px] font-normal uppercase text-[var(--text-muted)] opacity-70">
+                            est.
+                          </span>
+                        )}
+                      </span>
+                      <Link
+                        href={`/stock?action=adjust&itemId=${item.id}`}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-[var(--warning)] text-[var(--warning)] hover:bg-[var(--accent-soft)] text-[10px] font-semibold transition-colors hit-slop"
+                      >
+                        <PackagePlus className="w-3 h-3 stroke-[2]" />
+                        <span>Add stock</span>
+                      </Link>
+                    </div>
+                  </div>
+                );
+              }
 
               return (
                 <button
@@ -409,8 +534,6 @@ export default function HomePage() {
                     if (!hasPrice) {
                       setPriceSheetItem(item);
                       setPriceSheetOpen(true);
-                    } else if (item.current_qty <= 0) {
-                      setNegativeStockConfirmItem(item);
                     } else {
                       handleQuickSell(item);
                     }
@@ -487,14 +610,11 @@ export default function HomePage() {
               <div className="divide-y divide-[var(--border)]">
                 {runningLow.map((item: any) => {
                   const days = item.forecast?.daysLeft ?? 0;
-                  const isNegative = Number(item.current_qty) < 0;
                   const isOut = Number(item.current_qty) <= 0;
                   return (
                     <div
                       key={item.id}
-                      className={`py-2.5 flex items-center justify-between gap-3 ${
-                        isNegative ? 'bg-[var(--danger-soft)]/20 -mx-2 px-2 rounded' : ''
-                      }`}
+                      className="py-2.5 flex items-center justify-between gap-3"
                     >
                       <div className="min-w-0 flex-1">
                         <div className="font-medium text-xs text-[var(--text)] truncate">{item.name}</div>
@@ -508,23 +628,25 @@ export default function HomePage() {
                           </div>
                           <span
                             className={`text-[11px] tabular-nums ${
-                              isNegative ? 'text-[var(--danger)] font-bold' : 'text-[var(--text-muted)]'
+                              isOut ? 'text-[var(--danger)] font-bold' : 'text-[var(--text-muted)]'
                             }`}
                           >
                             {item.current_qty} {item.unit}
                           </span>
                         </div>
                       </div>
-                      <div>
-                        {isNegative ? (
-                          <Link
-                            href="/stock"
-                            className="badge badge-out bg-[var(--danger)] text-white hover:opacity-90 inline-block font-semibold"
-                          >
-                            Fix stock
-                          </Link>
-                        ) : isOut ? (
-                          <span className="badge badge-out">Out</span>
+                      <div className="flex items-center gap-2">
+                        {isOut ? (
+                          <>
+                            <span className="badge badge-out">Out</span>
+                            <Link
+                              href={`/stock?action=adjust&itemId=${item.id}`}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-[var(--r-sm)] border border-[var(--warning)] text-[var(--warning)] hover:bg-[var(--accent-soft)] text-[11px] font-semibold transition-colors hit-slop"
+                            >
+                              <PackagePlus className="w-3.5 h-3.5 stroke-[2]" />
+                              <span>Add stock</span>
+                            </Link>
+                          </>
                         ) : (
                           <span className="badge badge-low">{days}d left</span>
                         )}
@@ -643,60 +765,13 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Low/Negative stock warning modal */}
-      {negativeStockConfirmItem && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-        >
-          <div className="w-full max-w-sm rounded-[var(--r-lg)] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-lg space-y-4">
-            <div className="flex items-center gap-3 text-[var(--warning)]">
-              <div className="h-10 w-10 rounded-full bg-[var(--warning-soft)] flex items-center justify-center shrink-0">
-                <AlertTriangle className="h-5 w-5" />
-              </div>
-              <div>
-                <h3 className="font-display font-bold text-sm text-[var(--text)]">Stock Warning</h3>
-                <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                  Only {negativeStockConfirmItem.current_qty} {negativeStockConfirmItem.unit} left in stock.
-                </p>
-              </div>
-            </div>
-            <p className="text-xs text-[var(--text)]">
-              Logging this sale will take your stock into negative count. Sell anyway?
-            </p>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setNegativeStockConfirmItem(null)}
-                className="text-xs"
-              >
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                className="bg-[var(--danger)] text-white hover:bg-[var(--danger)]/90 text-xs font-semibold"
-                onClick={() => {
-                  const it = negativeStockConfirmItem;
-                  setNegativeStockConfirmItem(null);
-                  handleQuickSell(it);
-                }}
-              >
-                Sell anyway
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Set Price Sheet for unpriced items */}
       <PriceSheet
         item={priceSheetItem}
         open={priceSheetOpen}
         onOpenChange={setPriceSheetOpen}
         onPriceSet={async () => {
-          await loadDashboard();
+          await handleRefresh();
         }}
       />
     </div>
