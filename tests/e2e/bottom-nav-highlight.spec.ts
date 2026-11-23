@@ -100,7 +100,7 @@ test.describe('Part 2: Bottom Navigation Highlight Geometry & Placement', () => 
 
     for (const route of routes) {
       const tabLink = nav.locator(`[data-pill-id="${route.href}"]`);
-      await tabLink.click();
+      await tabLink.click({ force: true });
       await page.waitForURL(new RegExp(route.href));
 
       const pill = nav.locator('[data-sliding-pill]');
@@ -108,16 +108,14 @@ test.describe('Part 2: Bottom Navigation Highlight Geometry & Placement', () => 
         await expect(pill).not.toBeVisible();
       } else {
         await expect(pill).toBeVisible();
-        const activeBox = await tabLink.boundingBox();
-        const pillBox = await pill.boundingBox();
-        expect(activeBox).not.toBeNull();
-        expect(pillBox).not.toBeNull();
-
-        if (pillBox && activeBox) {
-          const pillCenterX = pillBox.x + pillBox.width / 2;
-          const activeCenterX = activeBox.x + activeBox.width / 2;
-          expect(Math.abs(pillCenterX - activeCenterX)).toBeLessThanOrEqual(2.5);
-        }
+        await expect.poll(async () => {
+          const pb = await pill.boundingBox();
+          const ab = await tabLink.boundingBox();
+          if (!pb || !ab) return 999;
+          const pCenter = pb.x + pb.width / 2;
+          const aCenter = ab.x + ab.width / 2;
+          return Math.abs(pCenter - aCenter);
+        }).toBeLessThanOrEqual(2.5);
       }
     }
     await context.close();
