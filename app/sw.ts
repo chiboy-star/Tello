@@ -18,8 +18,8 @@ declare global {
 
 declare const self: ServiceWorkerGlobalScope;
 
-// Bump cache version to v3
-const CACHE_VERSION = 'v3';
+// Bump cache version to v4
+const CACHE_VERSION = 'v4';
 setCacheNameDetails({
   prefix: 'tallo',
   suffix: CACHE_VERSION,
@@ -36,41 +36,24 @@ const serwist = new Serwist({
       matcher: ({ url }: { url: URL }) => url.searchParams.has('_rsc'),
       handler: new NetworkOnly(),
     },
-    // 2. Auth, onboarding, and home document navigations must be NetworkOnly - NEVER cache
+    // 2. Auth, onboarding, and app document navigations must be NetworkOnly - NEVER cache
     {
       matcher: ({ url, request }: { url: URL; request: Request }) =>
         request.mode === 'navigate' &&
         (url.pathname === '/login' ||
           url.pathname === '/signup' ||
           url.pathname === '/onboarding' ||
-          url.pathname === '/home'),
+          url.pathname === '/home' ||
+          url.pathname === '/sell' ||
+          url.pathname === '/stock' ||
+          url.pathname === '/debts' ||
+          url.pathname === '/reports' ||
+          url.pathname === '/settings'),
       handler: new NetworkOnly(),
     },
-    // 3. Stale-While-Revalidate for GET read routes per spec - NEVER cache non-200 or redirected
+    // 3. ALL /api/* requests must be NetworkOnly - NEVER cache API responses in Service Worker
     {
-      matcher: ({ url }: { url: URL }) =>
-        url.pathname === '/api/items' ||
-        url.pathname === '/api/stock/forecast' ||
-        url.pathname === '/api/customers' ||
-        url.pathname === '/api/reports',
-      handler: new StaleWhileRevalidate({
-        cacheName: `tallo-api-cache-${CACHE_VERSION}`,
-        plugins: [
-          new CacheableResponsePlugin({
-            statuses: [200],
-          }),
-        ],
-      }),
-    },
-    // 4. Network-only for mutating, auth, and parse routes
-    {
-      matcher: ({ url, request }: { url: URL; request: Request }) =>
-        request.method !== 'GET' ||
-        url.pathname.startsWith('/api/entries/parse') ||
-        url.pathname.startsWith('/api/entries/commit') ||
-        url.pathname.startsWith('/api/batches') ||
-        url.pathname.startsWith('/api/account') ||
-        url.pathname.startsWith('/api/auth'),
+      matcher: ({ url }: { url: URL }) => url.pathname.startsWith('/api/'),
       handler: new NetworkOnly(),
     },
     // Filter defaultCache so it never caches _rsc or auth/home navigations
