@@ -1,0 +1,17 @@
+{
+  "slug": "cabin-biscuit",
+  "name": "Cabin Biscuit",
+  "category": "everyday",
+  "unit": "pack",
+  "sourceUrl": "https://supermart.ng/products/oxford-sweetened-cabin-biscuit-350g",
+  "fetchDate": "2026-11-20",
+  "productTitleFromSource": "Oxford Cabin Biscuit (Snack Pack / Roll)",
+  "tiers": {
+    "low": 120,
+    "medium": 150,
+    "high": 200
+  },
+  "costPrice": 110,
+  "confidence": "medium",
+  "formula": "Carton of 24 snack packs @ ₦2,640 -> ₦110 cost; kiosk retail ₦150."
+}

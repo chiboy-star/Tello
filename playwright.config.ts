@@ -1,5 +1,8 @@
 import { defineConfig } from "@playwright/test";
 
+// Enforce ipv4first globally so Node fetch never times out on Cloudflare/Supabase on Windows
+process.env.NODE_OPTIONS = `${process.env.NODE_OPTIONS || ""} --dns-result-order=ipv4first`.trim();
+
 export default defineConfig({
   testDir: "./tests/e2e",
   fullyParallel: false,
@@ -9,6 +12,9 @@ export default defineConfig({
   use: {
     baseURL: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
     trace: "on-first-retry",
+    launchOptions: {
+      args: ["--host-resolver-rules=MAP gksaxxvxzzpgamnwsczl.supabase.co 172.64.149.246"],
+    },
   },
   projects: [
     {
@@ -26,7 +32,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "next dev",
+    command: "node --dns-result-order=ipv4first ./node_modules/next/dist/bin/next dev",
     url: "http://localhost:3000",
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,

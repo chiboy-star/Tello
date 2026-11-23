@@ -1,0 +1,17 @@
+{
+  "slug": "maggi-star-cubes",
+  "name": "Maggi Star Cubes",
+  "category": "food",
+  "unit": "pack",
+  "sourceUrl": "https://supermart.ng/products/maggi-star-seasoning-cubes-400g-x100",
+  "fetchDate": "2026-11-20",
+  "productTitleFromSource": "Maggi Star Seasoning Cubes (400g x100 cubes)",
+  "tiers": {
+    "low": 1800,
+    "medium": 2000,
+    "high": 2400
+  },
+  "costPrice": 1750,
+  "confidence": "high",
+  "formula": "Supermart listed @ ₦1,965. Wholesale pack @ ₦1,750; standard kiosk ₦2,000."
+}

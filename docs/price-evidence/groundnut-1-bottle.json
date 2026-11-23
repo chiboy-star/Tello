@@ -1,0 +1,17 @@
+{
+  "slug": "groundnut-1-bottle",
+  "name": "Groundnut 1 Bottle",
+  "category": "everyday",
+  "unit": "bottle",
+  "sourceUrl": "https://pricepally.com/products/roasted-groundnut-75cl",
+  "fetchDate": "2026-11-18",
+  "productTitleFromSource": "Roasted Groundnut 75cl Wine Bottle Pack",
+  "tiers": {
+    "low": 1200,
+    "medium": 1500,
+    "high": 2000
+  },
+  "costPrice": 1100,
+  "confidence": "low",
+  "formula": "Wholesale open market measure -> ₦1,100 cost; kiosk retail ₦1,500."
+}

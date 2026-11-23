@@ -1,0 +1,17 @@
+{
+  "slug": "curry-powder-sachet",
+  "name": "Curry Powder Sachet",
+  "category": "food",
+  "unit": "sachet",
+  "sourceUrl": "https://supermart.ng/products/ducros-curry-powder-sachet-25g",
+  "fetchDate": "2026-11-20",
+  "productTitleFromSource": "Ducros / Gino Curry Powder (25g Sachet)",
+  "tiers": {
+    "low": 100,
+    "medium": 150,
+    "high": 200
+  },
+  "costPrice": 90,
+  "confidence": "medium",
+  "formula": "Strip roll of 10 @ ₦900 -> ₦90 cost; retail ₦150."
+}

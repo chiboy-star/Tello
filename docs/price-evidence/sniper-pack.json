@@ -1,0 +1,17 @@
+{
+  "slug": "sniper-pack",
+  "name": "Sniper (Pack)",
+  "category": "household",
+  "unit": "bottle",
+  "sourceUrl": "https://supermart.ng/products/sniper-ddvp-insecticide-100ml",
+  "fetchDate": "2026-11-20",
+  "productTitleFromSource": "Sniper DDVP Agro-Insecticide (100ml bottle)",
+  "tiers": {
+    "low": 1300,
+    "medium": 1500,
+    "high": 1800
+  },
+  "costPrice": 1150,
+  "confidence": "medium",
+  "formula": "Carton of 24 @ ₦27,600 -> ₦1,150 cost; retail ₦1,500."
+}

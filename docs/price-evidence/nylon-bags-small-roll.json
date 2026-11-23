@@ -1,0 +1,17 @@
+{
+  "slug": "nylon-bags-small-roll",
+  "name": "Nylon Bags (Small roll)",
+  "category": "household",
+  "unit": "roll",
+  "sourceUrl": "https://pricepally.com/products/shopping-nylon-bags-small",
+  "fetchDate": "2026-11-18",
+  "productTitleFromSource": "Transparent Shopping Nylon Carrier Bags (Bundle roll of 50-100)",
+  "tiers": {
+    "low": 350,
+    "medium": 450,
+    "high": 600
+  },
+  "costPrice": 300,
+  "confidence": "medium",
+  "formula": "Bundle wholesale @ ₦300; store selling price ₦450."
+}

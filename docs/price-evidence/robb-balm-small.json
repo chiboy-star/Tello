@@ -1,0 +1,17 @@
+{
+  "slug": "robb-balm-small",
+  "name": "Robb Balm (Small)",
+  "category": "personal_care",
+  "unit": "piece",
+  "sourceUrl": "https://supermart.ng/products/robb-menthol-inhaler-hot-balm-tin",
+  "fetchDate": "2026-11-20",
+  "productTitleFromSource": "Robb Hot Menthol Ointment Balm (Small pocket tin/jar)",
+  "tiers": {
+    "low": 250,
+    "medium": 300,
+    "high": 400
+  },
+  "costPrice": 220,
+  "confidence": "high",
+  "formula": "Display tray of 24 tins @ ₦5,280 -> ₦220 cost; kiosk retail ₦300."
+}

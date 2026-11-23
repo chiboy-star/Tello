@@ -1,0 +1,17 @@
+{
+  "slug": "cotton-buds",
+  "name": "Cotton Buds",
+  "category": "personal_care",
+  "unit": "pack",
+  "sourceUrl": "https://supermart.ng/products/cotton-buds-ear-cleaner-pack-of-100",
+  "fetchDate": "2026-11-20",
+  "productTitleFromSource": "Plastic Stem Cotton Buds / Ear Tips (Box of 100 tips)",
+  "tiers": {
+    "low": 300,
+    "medium": 400,
+    "high": 500
+  },
+  "costPrice": 250,
+  "confidence": "medium",
+  "formula": "Outer bundle of 12 @ ₦3,000 -> ₦250 cost; kiosk retail ₦400."
+}

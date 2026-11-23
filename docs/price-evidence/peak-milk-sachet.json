@@ -1,0 +1,17 @@
+{
+  "slug": "peak-milk-sachet",
+  "name": "Peak Milk Sachet",
+  "category": "drinks",
+  "unit": "sachet",
+  "sourceUrl": "https://supermart.ng/products/peak-instant-milk-powder-sachet",
+  "fetchDate": "2026-11-20",
+  "productTitleFromSource": "Peak Full Cream Milk Powder Sachet (14g)",
+  "tiers": {
+    "low": 180,
+    "medium": 200,
+    "high": 250
+  },
+  "costPrice": 160,
+  "confidence": "high",
+  "formula": "Roll of 10 sachets @ ₦1,600 -> ₦160 cost; kiosk retail ₦200."
+}

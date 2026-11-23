@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { fromMinor, toMinor } from '@/lib/domain/money';
+import { CATALOG_ITEMS } from '@/lib/catalog/catalog.data';
 import { PricesSkeleton } from '@/components/skeletons';
 import {
   ArrowLeft,
@@ -13,6 +14,15 @@ import {
   Check,
   CheckCheck,
 } from 'lucide-react';
+
+const catalogConfidenceMap = new Map<string, 'high' | 'medium' | 'low'>(
+  CATALOG_ITEMS.map((c) => [c.name.toLowerCase(), c.refPriceConfidence || 'medium'])
+);
+
+function getItemConfidence(item: any): 'high' | 'medium' | 'low' {
+  if (item.ref_price_confidence) return item.ref_price_confidence;
+  return catalogConfidenceMap.get(item.name?.toLowerCase()) || 'medium';
+}
 
 export default function ReviewPricesPage() {
   const queryClient = useQueryClient();
@@ -68,7 +78,7 @@ export default function ReviewPricesPage() {
       );
     }
 
-    // Sort: missing/no estimate first, then estimates, then others
+    // Sort: missing/no estimate first, then low-confidence estimates, then other estimates, then others
     list.sort((a: any, b: any) => {
       const aMissing = a.sell_price_minor === null || a.sell_price_minor === 0;
       const bMissing = b.sell_price_minor === null || b.sell_price_minor === 0;
@@ -79,6 +89,15 @@ export default function ReviewPricesPage() {
       const bEst = b.sell_price_source === 'estimate';
       if (aEst && !bEst) return -1;
       if (!aEst && bEst) return 1;
+
+      if (aEst && bEst) {
+        const confOrder: Record<string, number> = { low: 0, medium: 1, high: 2 };
+        const aConf = confOrder[getItemConfidence(a)] ?? 1;
+        const bConf = confOrder[getItemConfidence(b)] ?? 1;
+        if (aConf !== bConf) {
+          return aConf - bConf; // low confidence first
+        }
+      }
 
       return a.name.localeCompare(b.name);
     });
@@ -327,7 +346,11 @@ export default function ReviewPricesPage() {
                           <span>Unit: {item.unit}</span>
                           {isEstimate && (
                             <span className="text-[10px] text-[var(--text-muted)] italic">
-                              Estimate, checked Nov 2026
+                              {getItemConfidence(item) === 'low'
+                                ? 'Rough estimate'
+                                : getItemConfidence(item) === 'high'
+                                ? 'Verified price'
+                                : 'Market estimate'}
                             </span>
                           )}
                         </div>

@@ -1,0 +1,17 @@
+{
+  "slug": "premier-cool-soap",
+  "name": "Premier Cool Soap",
+  "category": "personal_care",
+  "unit": "piece",
+  "sourceUrl": "https://supermart.ng/products/premier-cool-antibacterial-soap-110g",
+  "fetchDate": "2026-11-20",
+  "productTitleFromSource": "Premier Cool Antiseptic Bathing Soap (110g bar)",
+  "tiers": {
+    "low": 450,
+    "medium": 500,
+    "high": 650
+  },
+  "costPrice": 380,
+  "confidence": "high",
+  "formula": "Outer pack of 6 @ ₦2,280 -> ₦380 cost; kiosk retail ₦500."
+}

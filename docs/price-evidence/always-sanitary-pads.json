@@ -1,0 +1,17 @@
+{
+  "slug": "always-sanitary-pads",
+  "name": "Always Sanitary Pads",
+  "category": "personal_care",
+  "unit": "pack",
+  "sourceUrl": "https://supermart.ng/products/always-3-in-1-maxi-thick-sanitary-pads-xl-x7",
+  "fetchDate": "2026-11-20",
+  "productTitleFromSource": "Always 3 in 1 Maxi Thick Sanitary Pads with Wings (Pack of 7 @ ₦1,670 on Supermart)",
+  "tiers": {
+    "low": 1500,
+    "medium": 1700,
+    "high": 2100
+  },
+  "costPrice": 1350,
+  "confidence": "high",
+  "formula": "Supermart listed @ ₦1,670. Wholesale bundle of 12 packs @ ₦16,200 (₦1,350 cost); retail ₦1,700."
+}

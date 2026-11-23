@@ -100,7 +100,7 @@ export const POST = withAuth(async (req: NextRequest, { user, supabase }) => {
 
     if (newRows.length > 0) {
       let { error: itemsError } = await supabase.from('items').insert(newRows);
-      if (itemsError && itemsError.code === 'PGRST204') {
+      if (itemsError && (itemsError.code === 'PGRST204' || itemsError.code === '42703' || itemsError.message?.includes('sell_price_source'))) {
         // Graceful fallback if sell_price_source column is not yet migrated in remote Supabase
         const fallbackRows = newRows.map(({ sell_price_source: _, ...rest }) => rest);
         const retry = await supabase.from('items').insert(fallbackRows);

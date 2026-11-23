@@ -1,0 +1,17 @@
+{
+  "slug": "minimie-chinchin",
+  "name": "Minimie Chinchin",
+  "category": "everyday",
+  "unit": "pack",
+  "sourceUrl": "https://supermart.ng/products/minimie-chin-chin-snack-jar-900g",
+  "fetchDate": "2026-11-20",
+  "productTitleFromSource": "Minimie Chin Chin Sachet Pack (45g)",
+  "tiers": {
+    "low": 120,
+    "medium": 150,
+    "high": 200
+  },
+  "costPrice": 110,
+  "confidence": "medium",
+  "formula": "Wholesale hanger roll of 10 @ ₦1,100 -> ₦110 cost; retail ₦150."
+}

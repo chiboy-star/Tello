@@ -1,0 +1,17 @@
+{
+  "slug": "lucozade-boost-50cl",
+  "name": "Lucozade Boost 50cl",
+  "category": "drinks",
+  "unit": "bottle",
+  "sourceUrl": "https://supermart.ng/products/lucozade-boost-energy-drink-pet-50-cl",
+  "fetchDate": "2026-11-20",
+  "productTitleFromSource": "Lucozade Boost Energy Drink PET Bottle 50cl",
+  "tiers": {
+    "low": 800,
+    "medium": 900,
+    "high": 1100
+  },
+  "costPrice": 720,
+  "confidence": "high",
+  "formula": "Case of 12 @ ₦8,640 -> ₦720 cost; retail ₦900."
+}

@@ -1,0 +1,17 @@
+{
+  "slug": "sugar-st-louis-cube",
+  "name": "Sugar (St. Louis Cube)",
+  "category": "food",
+  "unit": "packet",
+  "sourceUrl": "https://supermart.ng/products/st-louis-sugar-cubes-474g",
+  "fetchDate": "2026-11-20",
+  "productTitleFromSource": "St. Louis Cube Sugar (474g packet)",
+  "tiers": {
+    "low": 2000,
+    "medium": 2200,
+    "high": 2600
+  },
+  "costPrice": 1900,
+  "confidence": "high",
+  "formula": "Supermart listed @ ₦2,120. Wholesale carton of 25 @ ₦47,500 (₦1,900); retail ₦2,200."
+}

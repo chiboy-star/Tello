@@ -1,0 +1,17 @@
+{
+  "slug": "fearless-energy-drink",
+  "name": "Fearless Energy Drink",
+  "category": "drinks",
+  "unit": "can",
+  "sourceUrl": "https://supermart.ng/products/fearless-energy-drink-classic-50-cl",
+  "fetchDate": "2026-11-20",
+  "productTitleFromSource": "Fearless Energy Drink Classic PET/Can (50cl @ ₦920 on Supermart)",
+  "tiers": {
+    "low": 500,
+    "medium": 600,
+    "high": 920
+  },
+  "costPrice": 450,
+  "confidence": "high",
+  "formula": "Supermarket high tier @ ₦920; wholesale pack of 12 @ ₦5,400 (₦450 cost); kiosk retail ₦600."
+}

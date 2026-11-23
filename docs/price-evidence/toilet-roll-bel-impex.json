@@ -1,0 +1,17 @@
+{
+  "slug": "toilet-roll-bel-impex",
+  "name": "Toilet Roll (Bel Impex)",
+  "category": "household",
+  "unit": "roll",
+  "sourceUrl": "https://supermart.ng/products/bel-impex-rose-toilet-roll",
+  "fetchDate": "2026-11-20",
+  "productTitleFromSource": "Bel Impex Rose Virgin Pulp Toilet Paper Roll",
+  "tiers": {
+    "low": 300,
+    "medium": 350,
+    "high": 450
+  },
+  "costPrice": 260,
+  "confidence": "high",
+  "formula": "Bag of 48 rolls @ ₦12,480 -> ₦260 cost; kiosk retail ₦350 per roll."
+}

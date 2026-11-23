@@ -1,0 +1,17 @@
+{
+  "slug": "garri-yellow",
+  "name": "Garri (Yellow)",
+  "category": "food",
+  "unit": "derica",
+  "sourceUrl": "https://nigerianstat.gov.ng",
+  "fetchDate": "2026-11-15",
+  "productTitleFromSource": "NBS Food Price Watch: Yellow Garri (1kg sold loose)",
+  "tiers": {
+    "low": 850,
+    "medium": 950,
+    "high": 1200
+  },
+  "costPrice": 800,
+  "confidence": "high",
+  "formula": "1 derica yellow garri = 0.75 kg. Oil-infused palm garri premium -> ₦950 retail."
+}

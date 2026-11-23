@@ -1,0 +1,17 @@
+{
+  "slug": "coaster-biscuit",
+  "name": "Coaster Biscuit",
+  "category": "everyday",
+  "unit": "pack",
+  "sourceUrl": "https://supermart.ng/products/newbisco-coaster-biscuit",
+  "fetchDate": "2026-11-20",
+  "productTitleFromSource": "Newbisco Coaster Biscuit 36g",
+  "tiers": {
+    "low": 70,
+    "medium": 100,
+    "high": 120
+  },
+  "costPrice": 65,
+  "confidence": "medium",
+  "formula": "Roll / display pack of 12 @ ₦780 -> ₦65 cost; retail ₦100 per pack."
+}

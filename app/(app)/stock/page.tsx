@@ -165,7 +165,14 @@ export default function StockPage() {
                       </Link>
                     </td>
                     <td className="p-3.5 sm:px-4 font-semibold text-[var(--text)] tabular-nums">
-                      {formatMoney(item.sell_price_minor)}
+                      <div className="inline-flex items-center gap-1">
+                        {formatMoney(item.sell_price_minor)}
+                        {item.sell_price_source === 'estimate' && (
+                          <span className="text-[9px] font-normal uppercase text-[var(--text-muted)] opacity-70">
+                            est.
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="p-3.5 sm:px-4">
                       <div className="flex items-center gap-2">

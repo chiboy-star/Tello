@@ -1,0 +1,17 @@
+{
+  "slug": "tomato-paste-gino-de-rica",
+  "name": "Tomato Paste (Gino/De Rica)",
+  "category": "food",
+  "unit": "sachet",
+  "sourceUrl": "https://supermart.ng/products/gino-tomato-paste-sachet-70g",
+  "fetchDate": "2026-11-20",
+  "productTitleFromSource": "Gino / De Rica Tomato Paste 70g Sachet",
+  "tiers": {
+    "low": 250,
+    "medium": 300,
+    "high": 350
+  },
+  "costPrice": 230,
+  "confidence": "high",
+  "formula": "Carton of 50 sachets @ ₦11,500 -> ₦230 cost; retail kiosk ₦300."
+}

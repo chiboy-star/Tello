@@ -1,0 +1,17 @@
+{
+  "slug": "palm-oil",
+  "name": "Palm Oil",
+  "category": "food",
+  "unit": "bottle",
+  "sourceUrl": "https://nigerianstat.gov.ng",
+  "fetchDate": "2026-11-15",
+  "productTitleFromSource": "NBS Selected Food Price Watch: Palm Oil (1 Litre @ ₦2,130.40)",
+  "tiers": {
+    "low": 1400,
+    "medium": 1600,
+    "high": 2000
+  },
+  "costPrice": 1350,
+  "confidence": "high",
+  "formula": "Standard 75cl market bottle volume (0.75L). 0.75 * ₦2,130.40 = ₦1,597.80 -> ₦1,600 retail."
+}

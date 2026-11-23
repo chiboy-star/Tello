@@ -1,0 +1,17 @@
+{
+  "slug": "ariel-detergent-sachet",
+  "name": "Ariel Detergent Sachet",
+  "category": "household",
+  "unit": "sachet",
+  "sourceUrl": "https://supermart.ng/products/ariel-washing-powder-sachet",
+  "fetchDate": "2026-11-20",
+  "productTitleFromSource": "Ariel Automatic / Handwash Detergent Powder Sachet (85g)",
+  "tiers": {
+    "low": 180,
+    "medium": 200,
+    "high": 250
+  },
+  "costPrice": 160,
+  "confidence": "medium",
+  "formula": "Hanger roll of 12 @ ₦1,920 -> ₦160 cost; kiosk retail ₦200."
+}

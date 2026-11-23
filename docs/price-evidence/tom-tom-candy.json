@@ -1,0 +1,17 @@
+{
+  "slug": "tom-tom-candy",
+  "name": "Tom Tom Candy",
+  "category": "everyday",
+  "unit": "piece",
+  "sourceUrl": "https://supermart.ng/products/cadbury-tom-tom-candy",
+  "fetchDate": "2026-11-20",
+  "productTitleFromSource": "Cadbury Tom Tom Classic Menthol Candy (Bag of 50)",
+  "tiers": {
+    "low": 25,
+    "medium": 50,
+    "high": 50
+  },
+  "costPrice": 20,
+  "confidence": "medium",
+  "formula": "Bag of 50 sweets @ ₦1,000 wholesale -> ₦20 cost; ₦50 for 2 sweets (₦25-50 single unit)."
+}

@@ -1,0 +1,17 @@
+{
+  "slug": "garri-white",
+  "name": "Garri (White)",
+  "category": "food",
+  "unit": "derica",
+  "sourceUrl": "https://nigerianstat.gov.ng",
+  "fetchDate": "2026-11-15",
+  "productTitleFromSource": "NBS Selected Food Price Watch: White Garri (1kg sold loose @ ₦1,151.79)",
+  "tiers": {
+    "low": 800,
+    "medium": 900,
+    "high": 1100
+  },
+  "costPrice": 750,
+  "confidence": "high",
+  "formula": "1 derica of dry white garri = 0.75 kg. 0.75 * ₦1,151.79 = ₦863.84 -> benchmarked at ₦900 retail."
+}

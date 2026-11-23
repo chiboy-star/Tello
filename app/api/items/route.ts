@@ -12,6 +12,7 @@ const CreateItemSchema = z.object({
   category: z.string().trim().max(50).optional().nullable(),
   sellPrice: z.number().optional().nullable(),
   costPrice: z.number().optional().nullable(),
+  sellPriceSource: z.enum(['user', 'estimate']).optional().nullable(),
   startingQty: z.number().min(0, 'Starting quantity cannot be negative').default(0),
   reorderLeadDays: z.number().int().min(1).max(365).default(7),
   aliases: z.array(z.string()).default([]),
@@ -57,6 +58,14 @@ export const GET = withAuth(async (req: NextRequest, { user, supabase }) => {
   }));
 
   const itemsWithForecast = (items || []).map((item) => {
+    const isEstimate =
+      item.sell_price_source === 'estimate' ||
+      (Array.isArray(item.aliases) && item.aliases.includes('_price_source:estimate'));
+
+    const effectiveSellPriceSource = isEstimate
+      ? 'estimate'
+      : (item.sell_price_source || (item.sell_price_minor ? 'user' : null));
+
     const forecast = computeStockForecast(
       {
         id: item.id,
@@ -70,6 +79,7 @@ export const GET = withAuth(async (req: NextRequest, { user, supabase }) => {
 
     return {
       ...item,
+      sell_price_source: effectiveSellPriceSource,
       forecast,
     };
   });
@@ -149,7 +159,7 @@ export const POST = withAuth(async (req: NextRequest, { user, supabase }) => {
 
   if (sellPrice !== undefined && sellPrice !== null) {
     sellPriceMinor = toMinor(sellPrice);
-    sellPriceSource = 'user';
+    sellPriceSource = parsed.data.sellPriceSource || 'user';
   } else if (isNgn) {
     // Check catalog reference price
     const match = CATALOG_ITEMS.find((c) => c.name.toLowerCase() === name.toLowerCase());
@@ -160,6 +170,11 @@ export const POST = withAuth(async (req: NextRequest, { user, supabase }) => {
   }
 
   // 4. Insert item with 0 stock initially
+  const finalAliases = [...aliases];
+  if (sellPriceSource === 'estimate' && !finalAliases.includes('_price_source:estimate')) {
+    finalAliases.push('_price_source:estimate');
+  }
+
   const itemInsertData: any = {
     user_id: user.id,
     name,
@@ -170,7 +185,7 @@ export const POST = withAuth(async (req: NextRequest, { user, supabase }) => {
     sell_price_source: sellPriceSource,
     current_qty: 0,
     reorder_lead_days: reorderLeadDays,
-    aliases,
+    aliases: finalAliases,
   };
 
   let { data: item, error } = await supabase

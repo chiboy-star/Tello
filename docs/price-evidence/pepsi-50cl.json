@@ -1,0 +1,17 @@
+{
+  "slug": "pepsi-50cl",
+  "name": "Pepsi 50cl",
+  "category": "drinks",
+  "unit": "bottle",
+  "sourceUrl": "https://supermart.ng/products/pepsi-pet-50-cl",
+  "fetchDate": "2026-11-20",
+  "productTitleFromSource": "Pepsi Cola PET Bottle (50cl)",
+  "tiers": {
+    "low": 400,
+    "medium": 450,
+    "high": 550
+  },
+  "costPrice": 350,
+  "confidence": "high",
+  "formula": "Case of 12 @ ₦4,200 wholesale -> ₦350 cost; retail chilled @ ₦450."
+}

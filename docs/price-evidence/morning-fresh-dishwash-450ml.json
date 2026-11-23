@@ -1,0 +1,17 @@
+{
+  "slug": "morning-fresh-dishwash-450ml",
+  "name": "Morning Fresh Dishwash 450ml",
+  "category": "household",
+  "unit": "bottle",
+  "sourceUrl": "https://supermart.ng/products/morning-fresh-dish-washing-liquid-assorted-450-ml",
+  "fetchDate": "2026-11-20",
+  "productTitleFromSource": "Morning Fresh Dishwashing Liquid Assorted 450ml (@ ₦685 on Supermart)",
+  "tiers": {
+    "low": 650,
+    "medium": 750,
+    "high": 900
+  },
+  "costPrice": 580,
+  "confidence": "high",
+  "formula": "Listed on Supermart @ ₦685. Case of 12 wholesale @ ₦6,960 (₦580); kiosk retail ₦750."
+}

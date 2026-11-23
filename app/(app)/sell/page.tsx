@@ -59,6 +59,9 @@ export default function SellPage() {
   const [priceSheetItem, setPriceSheetItem] = useState<any | null>(null);
   const [priceSheetOpen, setPriceSheetOpen] = useState(false);
 
+  // Negative stock warning
+  const [stockWarningItem, setStockWarningItem] = useState<{ item: any; qty: number; onConfirm: () => void } | null>(null);
+
   useEffect(() => {
     if (itemsData?.items) {
       setItems(itemsData.items);
@@ -131,6 +134,20 @@ export default function SellPage() {
 
   // Handle Tap Sale
   const handleTapSale = async () => {
+    if (!selectedTapItem) return;
+
+    if (Number(selectedTapItem.current_qty) < quantity) {
+      setStockWarningItem({
+        item: selectedTapItem,
+        qty: quantity,
+        onConfirm: () => executeTapSale(),
+      });
+      return;
+    }
+    await executeTapSale();
+  };
+
+  const executeTapSale = async () => {
     if (!selectedTapItem) return;
 
     const unitPriceMinor = selectedTapItem.sell_price_minor || 0;
@@ -1013,6 +1030,53 @@ export default function SellPage() {
         <div className="fixed inset-0 pointer-events-none z-50 flex items-center justify-center">
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-brand text-on-brand shadow-subtle animate-in zoom-in duration-200">
             <Check className="h-8 w-8 stroke-[3]" />
+          </div>
+        </div>
+      )}
+
+      {/* Low/Negative stock confirmation dialog */}
+      {stockWarningItem && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+        >
+          <div className="w-full max-w-sm rounded-[var(--r-lg)] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-lg space-y-4">
+            <div className="flex items-center gap-3 text-[var(--warning)]">
+              <div className="h-10 w-10 rounded-full bg-[var(--warning-soft)] flex items-center justify-center shrink-0">
+                <AlertCircle className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="font-display font-bold text-sm text-[var(--text)]">Stock Warning</h3>
+                <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                  Only {stockWarningItem.item.current_qty} {stockWarningItem.item.unit} left in stock.
+                </p>
+              </div>
+            </div>
+            <p className="text-xs text-[var(--text)]">
+              Selling {stockWarningItem.qty} {stockWarningItem.item.unit} will take stock into negative numbers. Sell anyway?
+            </p>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setStockWarningItem(null)}
+                className="text-xs"
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                className="bg-[var(--danger)] text-white hover:bg-[var(--danger)]/90 text-xs font-semibold"
+                onClick={() => {
+                  const cb = stockWarningItem.onConfirm;
+                  setStockWarningItem(null);
+                  cb();
+                }}
+              >
+                Sell anyway
+              </Button>
+            </div>
           </div>
         </div>
       )}

@@ -1,0 +1,17 @@
+{
+  "slug": "indomie-chicken",
+  "name": "Indomie Chicken",
+  "category": "everyday",
+  "unit": "pack",
+  "sourceUrl": "https://supermart.ng/products/indomie-instant-noodles-chicken-flavor-70g",
+  "fetchDate": "2026-11-20",
+  "productTitleFromSource": "Indomie Instant Noodles Chicken Flavor 70g (Carton of 40 / Single Pack)",
+  "tiers": {
+    "low": 180,
+    "medium": 200,
+    "high": 250
+  },
+  "costPrice": 170,
+  "confidence": "high",
+  "formula": "Wholesale carton of 40 packs @ ₦6,800 -> ₦170 cost per pack; standard retail markup to ₦200."
+}

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { CATALOG_ITEMS, CatalogSeedItem } from '@/lib/catalog/catalog.data';
@@ -88,6 +89,13 @@ export default function OnboardingPage() {
     setErrorMsg(null);
 
     try {
+      const supabase = createClient();
+      const { data: sessionData } = await supabase.auth.getSession();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (sessionData?.session?.access_token) {
+        headers['Authorization'] = `Bearer ${sessionData.session.access_token}`;
+      }
+
       const itemsPayload = Array.from(selectedItems.values()).map((it) => ({
         name: it.name,
         unit: it.unit,
@@ -96,7 +104,7 @@ export default function OnboardingPage() {
 
       const res = await fetch('/api/onboarding/complete', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           businessType,
           shopName: shopName || 'My Shop',
@@ -110,7 +118,8 @@ export default function OnboardingPage() {
         throw new Error(data?.error?.message || 'Failed to complete onboarding');
       }
 
-      router.push('/home');
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+      window.location.assign('/home');
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : 'Failed to complete setup');
       setSubmitting(false);

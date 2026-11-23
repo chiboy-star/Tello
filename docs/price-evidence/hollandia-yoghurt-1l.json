@@ -1,0 +1,17 @@
+{
+  "slug": "hollandia-yoghurt-1l",
+  "name": "Hollandia Yoghurt 1L",
+  "category": "drinks",
+  "unit": "carton",
+  "sourceUrl": "https://supermart.ng/products/hollandia-yoghurt-plain-sweetened-1-l",
+  "fetchDate": "2026-11-20",
+  "productTitleFromSource": "Hollandia Drinking Yoghurt Plain Sweetened 1L Tetra Pak",
+  "tiers": {
+    "low": 1700,
+    "medium": 1900,
+    "high": 2400
+  },
+  "costPrice": 1600,
+  "confidence": "high",
+  "formula": "Case of 10 @ ₦16,000 -> ₦1,600 cost; retail ₦1,900."
+}

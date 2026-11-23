@@ -1,0 +1,17 @@
+{
+  "slug": "dano-milk-sachet",
+  "name": "Dano Milk Sachet",
+  "category": "drinks",
+  "unit": "sachet",
+  "sourceUrl": "https://supermart.ng/products/dano-cool-cow-milk-sachet-14g",
+  "fetchDate": "2026-11-20",
+  "productTitleFromSource": "Dano Full Cream / Cool Cow Powder Sachet (14g)",
+  "tiers": {
+    "low": 160,
+    "medium": 180,
+    "high": 220
+  },
+  "costPrice": 140,
+  "confidence": "medium",
+  "formula": "Roll of 10 @ ₦1,400 -> ₦140 cost; retail ₦180."
+}

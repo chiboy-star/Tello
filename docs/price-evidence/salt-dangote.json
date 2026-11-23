@@ -1,0 +1,17 @@
+{
+  "slug": "salt-dangote",
+  "name": "Salt (Dangote)",
+  "category": "food",
+  "unit": "sachet",
+  "sourceUrl": "https://supermart.ng/products/dangote-iodized-salt-1kg",
+  "fetchDate": "2026-11-20",
+  "productTitleFromSource": "Dangote Refined Iodized Salt (1kg pack)",
+  "tiers": {
+    "low": 350,
+    "medium": 400,
+    "high": 500
+  },
+  "costPrice": 320,
+  "confidence": "high",
+  "formula": "Bundle of 20 packs @ ₦6,400 -> ₦320 cost; retail ₦400."
+}

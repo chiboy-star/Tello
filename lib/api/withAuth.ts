@@ -26,10 +26,12 @@ export function withAuth(handler: AuthenticatedHandler): (
   ): Promise<NextResponse> => {
     try {
       const supabase = await createClient();
+      const authHeader = req.headers.get('authorization');
+      const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
       const {
         data: { user },
         error,
-      } = await supabase.auth.getUser();
+      } = await supabase.auth.getUser(token);
 
       if (error || !user) {
         return apiError('UNAUTHENTICATED', 'You must be signed in to perform this action', 401);
