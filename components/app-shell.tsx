@@ -343,7 +343,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <p className="mt-1 text-xs text-text-muted">Know your shop.</p>
           </div>
 
-          <nav ref={desktopNavRef} className="relative space-y-1">
+          <nav ref={desktopNavRef} aria-label="Desktop Navigation" className="relative space-y-1">
             <SlidingPill
               activeId={activeNavHref}
               containerRef={desktopNavRef}
@@ -497,7 +497,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 }}
                 onMouseEnter={() => prefetchTab(item.href)}
                 onFocus={() => prefetchTab(item.href)}
-                className="relative z-10 flex -translate-y-2 flex-col items-center justify-center hit-slop"
+                className="relative z-10 flex -translate-y-2 flex-col items-center justify-center hit-slop min-h-[44px] min-w-[44px]"
                 aria-label="Record Sale"
               >
                 <div
@@ -531,7 +531,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               }}
               onMouseEnter={() => prefetchTab(item.href)}
               onFocus={() => prefetchTab(item.href)}
-              className={`hit-slop relative z-10 flex flex-1 flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors ${
+              className={`hit-slop relative z-10 flex flex-1 h-full min-h-[44px] flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors ${
                 isActive ? 'text-brand font-semibold' : 'text-text-muted hover:text-text'
               }`}
             >
