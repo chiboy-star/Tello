@@ -10,6 +10,7 @@ import { ArrowLeft, Users, Copy, Check, Phone, Clock, ArrowDownLeft, ArrowUpRigh
 import { useCustomer } from '@/lib/query/hooks';
 import { useQueryClient } from '@tanstack/react-query';
 import { DebtsDetailSkeleton } from '@/components/skeletons';
+import { invalidateAfterMutation, optimisticUpdateOnDebtPayment } from '@/lib/query/invalidate';
 
 export default function CustomerDebtDetailPage() {
   const params = useParams();
@@ -31,6 +32,8 @@ export default function CustomerDebtDetailPage() {
     e.preventDefault();
     if (!payAmount || payAmount <= 0) return;
     setPaying(true);
+    const amountMinor = Math.round(Number(payAmount) * 100);
+    optimisticUpdateOnDebtPayment(queryClient, customerId, amountMinor);
     try {
       const res = await fetch('/api/debts/payments', {
         method: 'POST',
@@ -43,10 +46,7 @@ export default function CustomerDebtDetailPage() {
 
       if (res.ok) {
         setPayAmount('');
-        await Promise.all([
-          queryClient.invalidateQueries({ queryKey: ['customer', customerId] }),
-          queryClient.invalidateQueries({ queryKey: ['customers'] }),
-        ]);
+        await invalidateAfterMutation(queryClient, 'debt_payment');
       }
     } catch (err) {
       console.error('Payment record failed:', err);

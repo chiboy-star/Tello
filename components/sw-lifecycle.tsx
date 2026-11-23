@@ -23,11 +23,29 @@ export function SwLifecycle() {
         });
       }
     } else {
-      // Production mode: register service worker
+      // Production mode: register service worker deferred to idle to avoid hydration main-thread contention
       if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch((err) => {
-          console.warn('[SW] Service worker registration error:', err);
-        });
+        const register = () => {
+          navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch((err) => {
+            console.warn('[SW] Service worker registration error:', err);
+          });
+        };
+
+        if (document.readyState === 'complete') {
+          if ('requestIdleCallback' in window) {
+            (window as any).requestIdleCallback(register);
+          } else {
+            setTimeout(register, 500);
+          }
+        } else {
+          window.addEventListener('load', () => {
+            if ('requestIdleCallback' in window) {
+              (window as any).requestIdleCallback(register);
+            } else {
+              setTimeout(register, 500);
+            }
+          }, { once: true });
+        }
       }
     }
   }, []);

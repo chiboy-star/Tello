@@ -9,6 +9,7 @@ import { Search, Plus, Copy, Check, ChevronRight, Phone } from 'lucide-react';
 import { useCustomers } from '@/lib/query/hooks';
 import { useQueryClient } from '@tanstack/react-query';
 import { DebtsSkeleton } from '@/components/skeletons';
+import { invalidateAfterMutation, optimisticUpdateOnCustomer, optimisticUpdateOnDebtPayment } from '@/lib/query/invalidate';
 
 export default function DebtsPage() {
   const queryClient = useQueryClient();
@@ -36,11 +37,18 @@ export default function DebtsPage() {
         body: JSON.stringify({ name: newCustName, phone: newCustPhone || null }),
       });
       if (res.ok) {
+        const data = await res.json();
+        const created = data.customer || {
+          id: crypto.randomUUID(),
+          name: newCustName,
+          phone: newCustPhone || null,
+          balanceMinor: 0,
+        };
+        optimisticUpdateOnCustomer(queryClient, created);
         setShowAddCustomer(false);
         setNewCustName('');
         setNewCustPhone('');
-        await queryClient.invalidateQueries({ queryKey: ['customers'] });
-        await queryClient.invalidateQueries({ queryKey: ['checklist'] });
+        await invalidateAfterMutation(queryClient, 'add_customer');
       }
     } catch (err) {
       console.error('Failed to create customer:', err);
@@ -50,6 +58,8 @@ export default function DebtsPage() {
   const handleRecordPayment = async () => {
     if (!payingCustomer || !payAmount || payAmount <= 0) return;
     setPaying(true);
+    const amountMinor = Math.round(Number(payAmount) * 100);
+    optimisticUpdateOnDebtPayment(queryClient, payingCustomer.id, amountMinor);
     try {
       const res = await fetch('/api/debts/payments', {
         method: 'POST',
@@ -63,8 +73,7 @@ export default function DebtsPage() {
       if (res.ok) {
         setPayingCustomer(null);
         setPayAmount('');
-        await queryClient.invalidateQueries({ queryKey: ['customers'] });
-        await queryClient.invalidateQueries({ queryKey: ['checklist'] });
+        await invalidateAfterMutation(queryClient, 'debt_payment');
       }
     } catch (err) {
       console.error('Failed to record payment:', err);

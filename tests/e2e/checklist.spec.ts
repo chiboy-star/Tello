@@ -1,13 +1,13 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('Part 3: Getting Started Checklist Real State Transitions', () => {
+test.describe('Part 3: Getting Started Checklist Real State Transitions (Pure UI)', () => {
   test('fresh user starts at 0/5, ticks update on actions without page reload, hides at 5/5', async ({ page }) => {
-    test.setTimeout(90000);
+    test.setTimeout(120000);
     const timestamp = Date.now();
-    const email = `checklist-user-${timestamp}@example.com`;
+    const email = `checklist-ui-${timestamp}@example.com`;
     const password = 'password123';
 
-    // 1. Sign up fresh user without pre-filled items
+    // 1. Sign up fresh user through UI
     await page.goto('/signup');
     await page.locator('#brand-splash').waitFor({ state: 'hidden' }).catch(() => {});
     await page.fill('input[name="name"]', `Checklist Owner ${timestamp}`);
@@ -15,7 +15,7 @@ test.describe('Part 3: Getting Started Checklist Real State Transitions', () => 
     await page.fill('input[name="password"]', password);
     await page.click('button[type="submit"]');
 
-    // Onboarding step 1
+    // Onboarding step 1: Business type
     await page.waitForURL(/.*onboarding/, { timeout: 20000 });
     await page.click('text=Retail Shop');
     await page.click('button:has-text("Next: Select Categories")');
@@ -30,122 +30,102 @@ test.describe('Part 3: Getting Started Checklist Real State Transitions', () => 
     }
     await page.click('button:has-text("Next: Pick Items")');
 
-    // Step 3: Finish setup and land on Home
+    // Step 3: Finish setup and land on Home with 0 items
     await page.click('button:has-text("Finish Setup & Open Shop")');
     await page.waitForURL(/.*home/, { timeout: 25000 });
 
-    // Clean any onboarding items so user starts at 0/5
-    await page.evaluate(async () => {
-      const res = await fetch('/api/items');
-      const data = await res.json();
-      for (const item of (data.items || [])) {
-        await fetch(`/api/items/${item.id}`, { method: 'DELETE' });
-      }
-      await (window as any).__REACT_QUERY_CLIENT__?.refetchQueries({ queryKey: ['dashboard'] });
-      await (window as any).__REACT_QUERY_CLIENT__?.refetchQueries({ queryKey: ['checklist'] });
-    });
-
-    // Assert Checklist shows on Home
+    // Assert Checklist card is visible on Home and tabular-nums is 0/5
     const checklistCard = page.locator('section[aria-labelledby="checklist-heading"]');
     await expect(checklistCard).toBeVisible();
-
-    // With 0 items, completed count should be 0/5
     const countText = checklistCard.locator('span.tabular-nums');
     await expect(countText).toHaveText('0/5');
 
-    // 2. Add 5 items with user-defined prices via API
-    await page.evaluate(async () => {
-      for (let i = 1; i <= 5; i++) {
-        await fetch('/api/items', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: `Checklist Item ${i}`,
-            category: 'Beverages',
-            unit: 'piece',
-            startingQty: 10,
-            sellPrice: 500, // Explicit user price (sell_price_source = 'user')
-          }),
-        });
-      }
-      await (window as any).__REACT_QUERY_CLIENT__?.refetchQueries({ queryKey: ['dashboard'] });
-      await (window as any).__REACT_QUERY_CLIENT__?.refetchQueries({ queryKey: ['checklist'] });
-    });
+    // 2. Add 5 items with user-defined prices through the UI Add Item Drawer
+    // Click the "Add at least 5 items" action inside the checklist
+    await checklistCard.locator('button:has-text("Add at least 5 items")').click();
 
-    // Both "Add at least 5 items" and "Review your prices" should now be ticked!
-    // Completed count updates to 2/5 without manual page reload
+    // The Add Item Drawer opens
+    const drawer = page.locator('[role="dialog"]');
+    await expect(drawer).toBeVisible();
+
+    // Add 5 items via Custom tab with user prices
+    await drawer.locator('button:has-text("Custom Item")').click();
+
+    for (let i = 1; i <= 5; i++) {
+      await drawer.locator('input#custom-item-name').fill(`Checklist Item ${i}`);
+      await drawer.locator('input#custom-item-price').fill('500');
+      await drawer.locator('input#custom-item-stock').fill('20');
+      await drawer.locator('button:has-text("Add to Inventory")').click();
+
+      if (i < 5) {
+        // Re-open drawer for next custom item
+        await page.click('button:has-text("Add Item")');
+        await expect(drawer).toBeVisible();
+        await drawer.locator('button:has-text("Custom Item")').click();
+      }
+    }
+
+    // Both "Add at least 5 items" and "Review your prices" are now completed!
+    // Assert completed count updates to 2/5 on Home automatically without reload
     await expect(countText).toHaveText('2/5', { timeout: 10000 });
 
-    // 3. Add a customer record via API
-    await page.evaluate(async () => {
-      await fetch('/api/customers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: 'Chinedu Okeke', phone: '08012345678' }),
-      });
-      await (window as any).__REACT_QUERY_CLIENT__?.refetchQueries({ queryKey: ['dashboard'] });
-      await (window as any).__REACT_QUERY_CLIENT__?.refetchQueries({ queryKey: ['checklist'] });
-    });
+    // 3. Add a customer record through the UI
+    await checklistCard.locator('a:has-text("Add a customer record")').click();
+    await page.waitForURL(/.*debts/, { timeout: 15000 });
 
-    // Completed count updates to 3/5
+    await page.click('button:has-text("Add Customer")');
+    await page.fill('input#customer-name', 'Chinedu Okeke');
+    await page.fill('input#customer-phone', '08012345678');
+    await page.click('button:has-text("Save Customer")');
+
+    // Navigate back to Home via bottom navigation
+    await page.click('a[href="/home"]');
+    await page.waitForURL(/.*home/, { timeout: 15000 });
+
+    // Assert completed count updates to 3/5 automatically
     await expect(countText).toHaveText('3/5', { timeout: 10000 });
 
-    // 4. Log a sale via API
-    await page.evaluate(async () => {
-      const itemsRes = await fetch('/api/items');
-      const { items } = await itemsRes.json();
-      const itemId = items[0].id;
+    // 4. Log a sale through the Sell UI
+    await checklistCard.locator('a:has-text("Log your first sale")').click();
+    await page.waitForURL(/.*sell/, { timeout: 15000 });
 
-      await fetch('/api/entries/commit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          entries: [
-            {
-              type: 'sale',
-              itemId,
-              quantity: 1,
-              unitAmount: 500,
-              paymentType: 'cash',
-              source: 'tap',
-            },
-          ],
-        }),
-      });
-      await (window as any).__REACT_QUERY_CLIENT__?.refetchQueries({ queryKey: ['dashboard'] });
-      await (window as any).__REACT_QUERY_CLIENT__?.refetchQueries({ queryKey: ['checklist'] });
-    });
+    // Tap first available item
+    const itemTile = page.locator('[data-item-tile="true"], div.cursor-pointer').first();
+    await expect(itemTile).toBeVisible();
+    await itemTile.click();
 
-    // Completed count updates to 4/5
+    // If multi-select summary bar is present, click "Record sale"
+    const recordBtn = page.locator('button:has-text("Record sale")');
+    if (await recordBtn.isVisible()) {
+      await recordBtn.click();
+    }
+    await page.click('button:has-text("Confirm Sale")');
+
+    // Navigate back to Home via bottom nav
+    await page.click('a[href="/home"]');
+    await page.waitForURL(/.*home/, { timeout: 15000 });
+
+    // Assert completed count updates to 4/5 automatically
     await expect(countText).toHaveText('4/5', { timeout: 10000 });
 
-    // 5. Try voice or photo entry
-    await page.evaluate(async () => {
-      const itemsRes = await fetch('/api/items');
-      const { items } = await itemsRes.json();
-      const itemId = items[0].id;
+    // 5. Try voice or photo entry (Type mode on Sell UI)
+    await checklistCard.locator('a:has-text("Try voice or photo entry")').click();
+    await page.waitForURL(/.*sell/, { timeout: 15000 });
 
-      await fetch('/api/entries/commit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          entries: [
-            {
-              type: 'sale',
-              itemId,
-              quantity: 1,
-              unitAmount: 500,
-              paymentType: 'cash',
-              source: 'voice',
-            },
-          ],
-        }),
-      });
-      await (window as any).__REACT_QUERY_CLIENT__?.refetchQueries({ queryKey: ['dashboard'] });
-      await (window as any).__REACT_QUERY_CLIENT__?.refetchQueries({ queryKey: ['checklist'] });
-    });
+    // Click "Type" mode tab
+    await page.click('button:has-text("Type")');
+    await page.fill('textarea', 'sold 1 Checklist Item 1 500');
+    await page.click('button:has-text("Parse")');
 
-    // When 5/5 complete, checklist section disappears completely!
+    await expect(page.locator('text=Confirm Entries')).toBeVisible({ timeout: 20000 });
+    await page.click('button:has-text("Save All Confirmed")');
+    await expect(page.locator('text=Sale recorded successfully')).toBeVisible({ timeout: 20000 });
+
+    // Navigate back to Home via bottom nav
+    await page.click('a[href="/home"]');
+    await page.waitForURL(/.*home/, { timeout: 15000 });
+
+    // When 5/5 complete, checklist section disappears completely from Home
     await expect(checklistCard).toBeHidden({ timeout: 10000 });
   });
 });

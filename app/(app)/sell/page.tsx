@@ -528,6 +528,13 @@ export default function SellPage() {
         source: parseResponse?.inputKind || 'text',
       }));
 
+      const totalAmountMinor = entriesToCommit.reduce((acc, e) => acc + e.totalMinor, 0);
+      optimisticUpdateOnSale(queryClient, {
+        totalMinor: totalAmountMinor,
+        paymentType: 'cash',
+        isCredit: false,
+      });
+
       const res = await fetch('/api/entries/commit', {
         method: 'POST',
         headers: {

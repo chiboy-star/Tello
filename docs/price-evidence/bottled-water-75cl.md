@@ -1,19 +1,21 @@
-# Price Evidence: Bottled Water 75cl (Eva / Nestle)
+# Price Evidence: Bottled Water 75cl (Eva)
 
-- **Item Name**: Bottled Water 75cl
+- **Item Name**: Bottled Water 75cl (Eva)
 - **Unit**: bottle
-- **Benchmark Retail Price**: ₦350 (35000 minor)
-- **Price Tier**: medium
-- **Source**: Supermart.ng
-- **Source URL**: https://www.supermart.ng/products/eva-table-water-75-cl-pack-of-12
+- **Verification Status**: Unverified (no product page was opened; derived from search engine snippet memory)
+- **Price Tier**: low
+- **Source**: Search Snippet Memory (Supermart.ng)
+- **Source URL**: https://www.supermart.ng/products/eva-water-75cl
 - **Access Date**: 2026-11-23
-- **HTTP Fetch Status**: HTTP 429 (rate_limited); extracted via verified Google Search Index snippet
+- **HTTP Fetch Status**: HTTP 429 (`local_rate_limited`); no live HTML page was opened.
 
-## Sourced Listings
-- Title: "Eva Table Water 75 cl (Pack of 12)"
-- Listed Price: ₦3,640.00 (Pack of 12 bottles)
+## Sourced Numbers & Origin
+- Pack of 12 (75cl): ₦3,640
+- Note on origin: This figure was recalled from search index title snippets, not from an opened page.
 
-## Selection & Conversion Rule
-Pack contains 12 bottles of 75cl table water.
-Conversion: ₦3,640 / 12 = ₦303.33 wholesale unit cost.
-Adding standard cold-chain retail markup: **₦350** (35,000 minor units).
+## Breakdown & Margin Separation
+- **Wholesale Pack Cost**: ₦3,640 (12 bottles)
+- **Wholesale Unit Cost**: ₦303.33
+- **Assumed Shop Retail Margin**: 15% (₦45.50)
+- **Estimated Retail Selling Price**: ₦350 (35,000 minor units)
+- *Note:* Wholesale pack unit cost (₦303) is not used as the shop selling price.

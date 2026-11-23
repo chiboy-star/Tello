@@ -13,18 +13,42 @@ export interface OptimisticSaleParams {
   itemStockUpdates?: Array<{ id: string; qtySold: number }>;
 }
 
+export interface OptimisticVoidParams {
+  totalMinor: number;
+  paymentType?: 'cash' | 'transfer' | 'credit';
+  isCredit?: boolean;
+  itemStockUpdates?: Array<{ id: string; qtyRestored: number }>;
+}
+
+export interface OptimisticCustomerParams {
+  id: string;
+  name: string;
+  phone?: string | null;
+  balanceMinor?: number;
+}
+
+export interface OptimisticItemParams {
+  id: string;
+  name: string;
+  category: string;
+  unit: string;
+  current_qty: number;
+  sell_price_minor: number | null;
+  sell_price_source?: 'user' | 'estimate' | null;
+}
+
 export const MUTATION_MAP = {
   commit_sale: ['dashboard', 'checklist', 'items', 'entries', 'customers', 'reports'],
   quick_sell: ['dashboard', 'checklist', 'items', 'entries', 'reports'],
   void_entry: ['dashboard', 'checklist', 'items', 'entries', 'customers', 'debts', 'reports'],
   void: ['dashboard', 'checklist', 'items', 'entries', 'customers', 'debts', 'reports'],
-  adjust_stock: ['items', 'entries', 'stock_activity', 'dashboard'],
+  adjust_stock: ['items', 'entries', 'stock_activity', 'dashboard', 'checklist'],
   add_edit_item: ['items', 'checklist', 'dashboard', 'catalog'],
   archive_item: ['items', 'checklist', 'dashboard', 'catalog'],
   bulk_add_items: ['items', 'checklist', 'dashboard', 'catalog'],
   price_change: ['items', 'checklist', 'dashboard'],
   add_customer: ['customers', 'debts', 'checklist', 'dashboard'],
-  debt_payment: ['customers', 'debts', 'entries', 'reports', 'dashboard'],
+  debt_payment: ['customers', 'debts', 'entries', 'reports', 'dashboard', 'checklist'],
   record_purchase: ['items', 'purchases', 'stock_activity', 'entries', 'reports', 'dashboard', 'checklist'],
   purchase: ['items', 'purchases', 'stock_activity', 'entries', 'reports', 'dashboard', 'checklist'],
   settings: ['settings', 'dashboard'],
@@ -35,7 +59,7 @@ export const MUTATION_MAP = {
 export type MutationType = keyof typeof MUTATION_MAP;
 
 /**
- * Optimistically updates dashboard numbers (revenue, count, credit) and item stock.
+ * Optimistically updates dashboard numbers (revenue, count, credit) and item stock on sale.
  */
 export function optimisticUpdateOnSale(client: QueryClient, params: OptimisticSaleParams) {
   // 1. Optimistically update Dashboard query
@@ -43,6 +67,11 @@ export function optimisticUpdateOnSale(client: QueryClient, params: OptimisticSa
     if (!old) return old;
     const oldToday = old.today || { revenueMinor: 0, salesCount: 0, creditGivenMinor: 0 };
     const oldChecklist = old.checklist || { steps: {} };
+    const newSteps = {
+      ...oldChecklist.steps,
+      logSale: true,
+    };
+    const count = Object.values(newSteps).filter(Boolean).length;
 
     return {
       ...old,
@@ -57,10 +86,9 @@ export function optimisticUpdateOnSale(client: QueryClient, params: OptimisticSa
       checklist: {
         ...oldChecklist,
         hasSale: true,
-        steps: {
-          ...oldChecklist.steps,
-          logSale: true,
-        },
+        completedCount: count,
+        allDone: count >= 5,
+        steps: newSteps,
       },
     };
   });
@@ -87,6 +115,181 @@ export function optimisticUpdateOnSale(client: QueryClient, params: OptimisticSa
   }
 
   // 3. Persist updated cache to IndexedDB
+  persistQueryCache(client).catch(() => {});
+}
+
+/**
+ * Optimistically reverts dashboard numbers and restores item stock on void / undo.
+ */
+export function optimisticUpdateOnVoid(client: QueryClient, params: OptimisticVoidParams) {
+  client.setQueryData(['dashboard'], (old: any) => {
+    if (!old) return old;
+    const oldToday = old.today || { revenueMinor: 0, salesCount: 0, creditGivenMinor: 0 };
+    return {
+      ...old,
+      today: {
+        ...oldToday,
+        revenueMinor: Math.max(0, (Number(oldToday.revenueMinor) || 0) - params.totalMinor),
+        salesCount: Math.max(0, (Number(oldToday.salesCount) || 0) - 1),
+        creditGivenMinor: params.isCredit
+          ? Math.max(0, (Number(oldToday.creditGivenMinor) || 0) - params.totalMinor)
+          : oldToday.creditGivenMinor || 0,
+      },
+    };
+  });
+
+  if (params.itemStockUpdates && params.itemStockUpdates.length > 0) {
+    const updateMap = new Map(params.itemStockUpdates.map((u) => [u.id, u.qtyRestored]));
+    client.setQueryData(['items', 'all'], (old: any) => {
+      if (!old || !old.items) return old;
+      return {
+        ...old,
+        items: old.items.map((i: any) => {
+          const qtyRestored = updateMap.get(i.id);
+          if (qtyRestored !== undefined) {
+            return {
+              ...i,
+              current_qty: (Number(i.current_qty) || 0) + qtyRestored,
+            };
+          }
+          return i;
+        }),
+      };
+    });
+  }
+
+  persistQueryCache(client).catch(() => {});
+}
+
+/**
+ * Optimistically updates customer list and checklist when adding a customer.
+ */
+export function optimisticUpdateOnCustomer(client: QueryClient, customer: OptimisticCustomerParams) {
+  client.setQueryData(['customers'], (old: any) => {
+    const list = old?.customers || [];
+    return { ...old, customers: [...list, customer] };
+  });
+
+  client.setQueryData(['dashboard'], (old: any) => {
+    if (!old) return old;
+    const oldChecklist = old.checklist || { steps: {} };
+    const newSteps = { ...oldChecklist.steps, addCustomer: true };
+    const count = Object.values(newSteps).filter(Boolean).length;
+    return {
+      ...old,
+      checklist: {
+        ...oldChecklist,
+        hasCustomer: true,
+        completedCount: count,
+        allDone: count >= 5,
+        steps: newSteps,
+      },
+    };
+  });
+
+  persistQueryCache(client).catch(() => {});
+}
+
+/**
+ * Optimistically updates item list and checklist when adding an item.
+ */
+export function optimisticUpdateOnItem(client: QueryClient, item: OptimisticItemParams) {
+  let updatedItemsCount = 1;
+  client.setQueryData(['items', 'all'], (old: any) => {
+    const list = old?.items || [];
+    const updated = [item, ...list];
+    updatedItemsCount = updated.length;
+    return { ...old, items: updated };
+  });
+
+  client.setQueryData(['dashboard'], (old: any) => {
+    if (!old) return old;
+    const oldChecklist = old.checklist || { steps: {} };
+    const addItemsDone = updatedItemsCount >= 5;
+    const reviewPricesDone = oldChecklist.steps?.reviewPrices || (item.sell_price_minor !== null && item.sell_price_minor > 0);
+    const newSteps = {
+      ...oldChecklist.steps,
+      addItems: addItemsDone,
+      reviewPrices: reviewPricesDone,
+    };
+    const count = Object.values(newSteps).filter(Boolean).length;
+    return {
+      ...old,
+      checklist: {
+        ...oldChecklist,
+        itemsCount: updatedItemsCount,
+        completedCount: count,
+        allDone: count >= 5,
+        steps: newSteps,
+      },
+    };
+  });
+
+  persistQueryCache(client).catch(() => {});
+}
+
+/**
+ * Optimistically updates item price and checklist when setting or confirming prices.
+ */
+export function optimisticUpdateOnPrice(client: QueryClient, itemId: string, sellPriceMinor: number) {
+  client.setQueryData(['items', 'all'], (old: any) => {
+    if (!old?.items) return old;
+    return {
+      ...old,
+      items: old.items.map((i: any) =>
+        i.id === itemId
+          ? { ...i, sell_price_minor: sellPriceMinor, sell_price_source: 'user' }
+          : i
+      ),
+    };
+  });
+
+  client.setQueryData(['dashboard'], (old: any) => {
+    if (!old) return old;
+    const oldChecklist = old.checklist || { steps: {} };
+    const newSteps = { ...oldChecklist.steps, reviewPrices: true };
+    const count = Object.values(newSteps).filter(Boolean).length;
+    return {
+      ...old,
+      checklist: {
+        ...oldChecklist,
+        completedCount: count,
+        allDone: count >= 5,
+        steps: newSteps,
+      },
+    };
+  });
+
+  persistQueryCache(client).catch(() => {});
+}
+
+/**
+ * Optimistically updates customer balance and debt ledger on payment.
+ */
+export function optimisticUpdateOnDebtPayment(client: QueryClient, customerId: string, amountMinor: number) {
+  client.setQueryData(['customers'], (old: any) => {
+    if (!old?.customers) return old;
+    return {
+      ...old,
+      customers: old.customers.map((c: any) =>
+        c.id === customerId
+          ? { ...c, balanceMinor: Math.max(0, (Number(c.balanceMinor) || 0) - amountMinor) }
+          : c
+      ),
+    };
+  });
+
+  client.setQueryData(['customer', customerId], (old: any) => {
+    if (!old?.customer) return old;
+    return {
+      ...old,
+      customer: {
+        ...old.customer,
+        balanceMinor: Math.max(0, (Number(old.customer.balanceMinor) || 0) - amountMinor),
+      },
+    };
+  });
+
   persistQueryCache(client).catch(() => {});
 }
 

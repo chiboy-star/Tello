@@ -108,9 +108,9 @@ export function useDashboard() {
       return res.json();
     },
     refetchOnWindowFocus: true,
-    refetchOnMount: true,
+    refetchOnMount: 'always',
     refetchOnReconnect: true,
-    staleTime: 5000,
+    staleTime: 0,
   });
 }
 
@@ -125,9 +125,9 @@ export function useChecklist() {
       return data.checklist;
     },
     refetchOnWindowFocus: true,
-    refetchOnMount: true,
+    refetchOnMount: 'always',
     refetchOnReconnect: true,
-    staleTime: 5000,
+    staleTime: 0,
   });
 }
 

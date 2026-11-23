@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { fromMinor, toMinor } from '@/lib/domain/money';
 import { CATALOG_ITEMS } from '@/lib/catalog/catalog.data';
 import { PricesSkeleton } from '@/components/skeletons';
+import { invalidateAfterMutation, optimisticUpdateOnPrice } from '@/lib/query/invalidate';
 import {
   ArrowLeft,
   Search,
@@ -141,6 +142,10 @@ export default function ReviewPricesPage() {
       };
     });
 
+    if (minor !== null) {
+      optimisticUpdateOnPrice(queryClient, item.id, minor);
+    }
+
     try {
       if (minor !== null) {
         await fetch('/api/stock/prices', {
@@ -157,10 +162,10 @@ export default function ReviewPricesPage() {
           body: JSON.stringify({ sellPrice: null }),
         });
       }
+      await invalidateAfterMutation(queryClient, 'price_change');
     } catch (err) {
       console.error('Failed to save price:', err);
-      queryClient.invalidateQueries({ queryKey: ['items'] });
-      queryClient.invalidateQueries({ queryKey: ['checklist'] });
+      await invalidateAfterMutation(queryClient, 'price_change');
     }
   };
 
@@ -182,7 +187,7 @@ export default function ReviewPricesPage() {
       if (res.ok) {
         setSavedSuccess(true);
         setTimeout(() => setSavedSuccess(false), 3000);
-        await queryClient.invalidateQueries({ queryKey: ['items'] });
+        await invalidateAfterMutation(queryClient, 'price_change');
       }
     } catch (err) {
       console.error('Failed to confirm all prices:', err);

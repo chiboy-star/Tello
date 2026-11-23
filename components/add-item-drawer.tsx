@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { invalidateAfterMutation, optimisticUpdateOnItem } from '@/lib/query/invalidate';
 import {
   Drawer,
   DrawerContent,
@@ -153,13 +154,10 @@ export function AddItemDrawer({
       if (res.ok) {
         const data = await res.json();
         const created = data.items || [];
-        await Promise.all([
-          queryClient.invalidateQueries({ queryKey: ['items'] }),
-          queryClient.invalidateQueries({ queryKey: ['catalog'] }),
-          queryClient.invalidateQueries({ queryKey: ['reports'] }),
-          queryClient.invalidateQueries({ queryKey: ['entries'] }),
-          queryClient.invalidateQueries({ queryKey: ['checklist'] }),
-        ]);
+        for (const it of created) {
+          optimisticUpdateOnItem(queryClient, it);
+        }
+        await invalidateAfterMutation(queryClient, 'bulk_add_items');
 
         onOpenChange(false);
         if (onSuccess) onSuccess(created);
@@ -217,11 +215,10 @@ export function AddItemDrawer({
       if (res.ok) {
         const data = await res.json();
         const created = data.item;
-        await Promise.all([
-          queryClient.invalidateQueries({ queryKey: ['items'] }),
-          queryClient.invalidateQueries({ queryKey: ['entries'] }),
-          queryClient.invalidateQueries({ queryKey: ['catalog'] }),
-        ]);
+        if (created) {
+          optimisticUpdateOnItem(queryClient, created);
+        }
+        await invalidateAfterMutation(queryClient, 'add_edit_item');
 
         onOpenChange(false);
         if (onSuccess && created) onSuccess([created]);
@@ -249,13 +246,7 @@ export function AddItemDrawer({
         body: JSON.stringify({ archived: false }),
       });
       if (res.ok) {
-        await Promise.all([
-          queryClient.invalidateQueries({ queryKey: ['items'] }),
-          queryClient.invalidateQueries({ queryKey: ['catalog'] }),
-          queryClient.invalidateQueries({ queryKey: ['reports'] }),
-          queryClient.invalidateQueries({ queryKey: ['entries'] }),
-          queryClient.invalidateQueries({ queryKey: ['checklist'] }),
-        ]);
+        await invalidateAfterMutation(queryClient, 'add_edit_item');
         onOpenChange(false);
         showUndoNotification(`"${restoreItemInfo.name}" restored · Undo`, [restoreItemInfo.id]);
       }

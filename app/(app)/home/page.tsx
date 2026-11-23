@@ -17,12 +17,12 @@ import {
 import { Button } from '@/components/ui/button';
 import { formatMoney } from '@/lib/domain/money';
 import { useQueryClient } from '@tanstack/react-query';
-import { useItems, useCustomers, useEntries, useDashboard } from '@/lib/query/hooks';
+import { useItems, useCustomers, useDashboard } from '@/lib/query/hooks';
 import dynamic from 'next/dynamic';
 import { HomeSkeleton } from '@/components/skeletons';
 const PriceSheet = dynamic(() => import('@/components/price-sheet').then((mod) => mod.PriceSheet), { ssr: false });
 import { SectionRetryCard } from '@/components/ui/section-retry-card';
-import { invalidateAfterMutation, optimisticUpdateOnSale } from '@/lib/query/invalidate';
+import { invalidateAfterMutation, optimisticUpdateOnSale, optimisticUpdateOnVoid } from '@/lib/query/invalidate';
 import { 
   getNeedsAttention, 
   removeNeedsAttentionItem, 
@@ -34,7 +34,6 @@ export default function HomePage() {
   const queryClient = useQueryClient();
   const { data: itemsData, isLoading: itemsLoading, isFetching: itemsFetching, error: itemsError, refetch: refetchItems } = useItems('all');
   const { data: custData, isLoading: custLoading, isFetching: custFetching, error: custError, refetch: refetchCust } = useCustomers();
-  const { isFetching: entriesFetching } = useEntries(50);
   const { data: dashData, isLoading: dashLoading, isFetching: dashFetching, refetch: refetchDash } = useDashboard();
 
   const items = useMemo(() => itemsData?.items || [], [itemsData]);
@@ -43,11 +42,12 @@ export default function HomePage() {
   // If cached data exists from TanStack cache or IndexedDB, render immediately without skeleton!
   const hasData = itemsData !== undefined || custData !== undefined || dashData !== undefined;
   const loading = !hasData && (itemsLoading || custLoading || dashLoading);
-  const isRefreshing = hasData && (itemsFetching || custFetching || dashFetching || entriesFetching);
+  const isRefreshing = hasData && (itemsFetching || custFetching || dashFetching);
 
   const [undoEntryId, setUndoEntryId] = useState<string | null>(null);
   const [undoMessage, setUndoMessage] = useState<string | null>(null);
   const [undoTimeout, setUndoTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [lastSaleInfo, setLastSaleInfo] = useState<{ totalMinor: number; isCredit: boolean; itemId: string } | null>(null);
   const [sellingItemId, setSellingItemId] = useState<string | null>(null);
 
   // Offline sales needing attention (e.g. rejected due to insufficient stock)
@@ -209,6 +209,7 @@ export default function HomePage() {
       paymentType: 'cash',
       isCredit: false,
     });
+    setLastSaleInfo({ totalMinor: sellPriceMinor, isCredit: false, itemId: item.id });
 
     try {
       const res = await fetch('/api/entries/commit', {
@@ -257,6 +258,16 @@ export default function HomePage() {
     if (undoTimeout) clearTimeout(undoTimeout);
     setUndoEntryId(null);
     setUndoMessage(null);
+
+    // Optimistically revert revenue and count immediately (sub-50ms)
+    if (lastSaleInfo) {
+      optimisticUpdateOnVoid(queryClient, {
+        totalMinor: lastSaleInfo.totalMinor,
+        isCredit: lastSaleInfo.isCredit,
+        itemStockUpdates: [{ id: lastSaleInfo.itemId, qtyRestored: 1 }],
+      });
+      setLastSaleInfo(null);
+    }
 
     try {
       await fetch(`/api/entries/${idToVoid}/void`, { method: 'POST' });
