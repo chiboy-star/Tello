@@ -23,7 +23,7 @@ test.describe('E2E #8 & #11: PWA Service Worker & Offline Queue', () => {
 
     try {
       await page.goto('/sell');
-      await page.waitForSelector('text=Confirm Sale', { timeout: 10000 });
+      await page.waitForSelector('h1:has-text("Record Sale")', { timeout: 10000 });
 
       // Count initial entries before the offline sale
       const initialEntries = await page.evaluate(async () => {
@@ -37,9 +37,16 @@ test.describe('E2E #8 & #11: PWA Service Worker & Offline Queue', () => {
       await page.context().setOffline(true);
 
       // 2. Tap-sell an item
-      const itemCard = page.locator('div.cursor-pointer').first();
+      const itemCard = page.locator('div.cursor-pointer, [data-item-tile="true"]').first();
       await expect(itemCard).toBeVisible();
       await itemCard.click();
+
+      // If multi-select summary bar is present, click "Record sale" first
+      const recordSummaryBtn = page.locator('button:has-text("Record sale")');
+      if (await recordSummaryBtn.isVisible()) {
+        await recordSummaryBtn.click();
+      }
+
       await page.click('button:has-text("Confirm Sale")');
 
       // 3. Assert top banner displays "1 waiting to sync"

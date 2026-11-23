@@ -41,6 +41,7 @@ test.describe('Part 3: Getting Started Checklist Real State Transitions', () => 
       for (const item of (data.items || [])) {
         await fetch(`/api/items/${item.id}`, { method: 'DELETE' });
       }
+      await (window as any).__REACT_QUERY_CLIENT__?.refetchQueries({ queryKey: ['dashboard'] });
       await (window as any).__REACT_QUERY_CLIENT__?.refetchQueries({ queryKey: ['checklist'] });
     });
 
@@ -67,6 +68,7 @@ test.describe('Part 3: Getting Started Checklist Real State Transitions', () => 
           }),
         });
       }
+      await (window as any).__REACT_QUERY_CLIENT__?.refetchQueries({ queryKey: ['dashboard'] });
       await (window as any).__REACT_QUERY_CLIENT__?.refetchQueries({ queryKey: ['checklist'] });
     });
 
@@ -81,6 +83,7 @@ test.describe('Part 3: Getting Started Checklist Real State Transitions', () => 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: 'Chinedu Okeke', phone: '08012345678' }),
       });
+      await (window as any).__REACT_QUERY_CLIENT__?.refetchQueries({ queryKey: ['dashboard'] });
       await (window as any).__REACT_QUERY_CLIENT__?.refetchQueries({ queryKey: ['checklist'] });
     });
 
@@ -109,6 +112,7 @@ test.describe('Part 3: Getting Started Checklist Real State Transitions', () => 
           ],
         }),
       });
+      await (window as any).__REACT_QUERY_CLIENT__?.refetchQueries({ queryKey: ['dashboard'] });
       await (window as any).__REACT_QUERY_CLIENT__?.refetchQueries({ queryKey: ['checklist'] });
     });
 
@@ -137,6 +141,7 @@ test.describe('Part 3: Getting Started Checklist Real State Transitions', () => 
           ],
         }),
       });
+      await (window as any).__REACT_QUERY_CLIENT__?.refetchQueries({ queryKey: ['dashboard'] });
       await (window as any).__REACT_QUERY_CLIENT__?.refetchQueries({ queryKey: ['checklist'] });
     });
 
