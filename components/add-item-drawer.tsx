@@ -14,6 +14,13 @@ import { Input } from '@/components/ui/input';
 import { formatMoney, toMinor } from '@/lib/domain/money';
 import { SlidingPill } from '@/components/ui/sliding-pill';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Search,
   Check,
   ChevronDown,
@@ -533,17 +540,18 @@ export function AddItemDrawer({
               {/* Category */}
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-[var(--text)]">Category</label>
-                <select
-                  value={customCategory}
-                  onChange={(e) => setCustomCategory(e.target.value)}
-                  className="w-full h-10 px-3 rounded-[var(--r-sm)] border border-[var(--border)] bg-[var(--surface)] text-xs text-[var(--text)] capitalize"
-                >
-                  {CATEGORIES.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat.replace('_', ' ')}
-                    </option>
-                  ))}
-                </select>
+                <Select value={customCategory} onValueChange={(val) => setCustomCategory(val as any)}>
+                  <SelectTrigger className="w-full h-10 capitalize">
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CATEGORIES.map((cat) => (
+                      <SelectItem key={cat} value={cat} className="capitalize">
+                        {cat.replace('_', ' ')}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Pricing & Opening Stock */}

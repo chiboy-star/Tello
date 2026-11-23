@@ -13,6 +13,14 @@ import { createClient } from '@/lib/supabase/client';
 import { clearPersistedQueryCache } from '@/lib/query/cache-persister';
 import { useSettings } from '@/lib/query/hooks';
 import { useInstall } from '@/components/install-provider';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Combobox } from '@/components/ui/combobox';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -148,33 +156,40 @@ export default function SettingsPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="text-xs font-semibold text-[var(--text)]">Currency Code</label>
-            <select
-              value={currency}
-              onChange={(e) => setCurrency(e.target.value)}
-              className="mt-1 w-full rounded-[var(--r-sm)] border border-[var(--border)] p-2 text-xs bg-[var(--surface)] text-[var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]"
-            >
-              <option value="NGN">NGN (Nigerian Naira - ₦)</option>
-              <option value="GHS">GHS (Ghanaian Cedi - ₵)</option>
-              <option value="KES">KES (Kenyan Shilling - KSh)</option>
-              <option value="USD">USD (US Dollar - $)</option>
-              <option value="EUR">EUR (Euro - €)</option>
-              <option value="GBP">GBP (British Pound - £)</option>
-            </select>
+            <div className="mt-1">
+              <Select value={currency} onValueChange={setCurrency}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select currency" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="NGN">NGN (Nigerian Naira - ₦)</SelectItem>
+                  <SelectItem value="GHS">GHS (Ghanaian Cedi - ₵)</SelectItem>
+                  <SelectItem value="KES">KES (Kenyan Shilling - KSh)</SelectItem>
+                  <SelectItem value="USD">USD (US Dollar - $)</SelectItem>
+                  <SelectItem value="EUR">EUR (Euro - €)</SelectItem>
+                  <SelectItem value="GBP">GBP (British Pound - £)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div>
             <label className="text-xs font-semibold text-[var(--text)]">Timezone</label>
-            <select
-              value={timezone}
-              onChange={(e) => setTimezone(e.target.value)}
-              className="mt-1 w-full rounded-[var(--r-sm)] border border-[var(--border)] p-2 text-xs bg-[var(--surface)] text-[var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]"
-            >
-              <option value="Africa/Lagos">Africa/Lagos (WAT, UTC+1)</option>
-              <option value="Africa/Accra">Africa/Accra (GMT, UTC+0)</option>
-              <option value="Africa/Nairobi">Africa/Nairobi (EAT, UTC+3)</option>
-              <option value="Africa/Johannesburg">Africa/Johannesburg (SAST, UTC+2)</option>
-              <option value="UTC">UTC</option>
-            </select>
+            <div className="mt-1">
+              <Combobox
+                value={timezone}
+                onChange={setTimezone}
+                placeholder="Select timezone"
+                searchPlaceholder="Search timezones..."
+                options={[
+                  { value: 'Africa/Lagos', label: 'Africa/Lagos (WAT, UTC+1)', description: 'Nigeria, West Africa Time' },
+                  { value: 'Africa/Accra', label: 'Africa/Accra (GMT, UTC+0)', description: 'Ghana' },
+                  { value: 'Africa/Nairobi', label: 'Africa/Nairobi (EAT, UTC+3)', description: 'Kenya' },
+                  { value: 'Africa/Johannesburg', label: 'Africa/Johannesburg (SAST, UTC+2)', description: 'South Africa' },
+                  { value: 'UTC', label: 'UTC', description: 'Coordinated Universal Time' },
+                ]}
+              />
+            </div>
           </div>
         </div>
 

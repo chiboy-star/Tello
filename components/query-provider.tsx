@@ -35,16 +35,24 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
       window.addEventListener('tallo:invalidate-queries' as any, handleInvalidate);
     }
 
-    restoreQueryCache(queryClient).then(() => {
-      // Subscribe to cache updates with debounce
-      let timeoutId: NodeJS.Timeout | null = null;
-      unsubscribe = queryClient.getQueryCache().subscribe(() => {
-        if (timeoutId) clearTimeout(timeoutId);
-        timeoutId = setTimeout(() => {
-          persistQueryCache(queryClient);
-        }, 1000);
+    const restore = () => {
+      restoreQueryCache(queryClient).then(() => {
+        // Subscribe to cache updates with debounce
+        let timeoutId: NodeJS.Timeout | null = null;
+        unsubscribe = queryClient.getQueryCache().subscribe(() => {
+          if (timeoutId) clearTimeout(timeoutId);
+          timeoutId = setTimeout(() => {
+            persistQueryCache(queryClient);
+          }, 1000);
+        });
       });
-    });
+    };
+
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      (window as any).requestIdleCallback(restore);
+    } else {
+      setTimeout(restore, 60);
+    }
 
     return () => {
       if (unsubscribe) unsubscribe();

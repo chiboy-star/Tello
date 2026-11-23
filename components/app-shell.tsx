@@ -25,6 +25,7 @@ import { getOfflineQueue, flushOfflineQueue } from '@/lib/offline/queue';
 import { getRouteSkeleton } from '@/components/skeletons';
 import { useInstall } from '@/components/install-provider';
 import { signalAppReady } from '@/components/app-ready';
+import { PullToRefresh } from '@/components/pull-to-refresh';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -455,19 +456,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      {/* Main Content Area with enter transition only (Part 3b) */}
+      {/* Main Content Area with enter transition only (Part 3b) and Pull to Refresh (Part 6) */}
       <main
         id="main-content"
         className="flex-1 px-4 pt-5 pb-28 sm:px-6 sm:py-8 sm:pb-8 mx-auto w-full max-w-[1100px]"
       >
-        <div
-          key={pendingHref && !isRouteCached(pendingHref) ? `pending-${pendingHref}` : pathname}
-          className="page-enter flex-1"
-        >
-          {pendingHref && !isRouteCached(pendingHref)
-            ? getRouteSkeleton(pendingHref)
-            : children}
-        </div>
+        <PullToRefresh>
+          <div
+            key={pendingHref && !isRouteCached(pendingHref) ? `pending-${pendingHref}` : pathname}
+            className="page-enter flex-1"
+          >
+            {pendingHref && !isRouteCached(pendingHref)
+              ? getRouteSkeleton(pendingHref)
+              : children}
+          </div>
+        </PullToRefresh>
       </main>
 
       {/* Mobile Bottom Navigation (<640px) */}
