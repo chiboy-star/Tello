@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { formatMoney, toMinor } from '@/lib/domain/money';
@@ -12,6 +12,15 @@ import { persistQueryCache } from '@/lib/query/cache-persister';
 import { useItems, useCustomers } from '@/lib/query/hooks';
 import { SellSkeleton } from '@/components/skeletons';
 import { PriceSheet } from '@/components/price-sheet';
+import { invalidateAfterMutation, optimisticUpdateOnSale } from '@/lib/query/invalidate';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Combobox } from '@/components/ui/combobox';
 import {
   Pointer,
   Mic,
@@ -24,6 +33,7 @@ import {
   AlertCircle,
   ImageUp,
   Check,
+  ShoppingBag,
 } from 'lucide-react';
 import {
   Drawer,
@@ -34,6 +44,11 @@ import {
   DrawerFooter,
 } from '@/components/ui/drawer';
 
+interface SelectedItemEntry {
+  item: any;
+  quantity: number;
+}
+
 export default function SellPage() {
   const queryClient = useQueryClient();
   const [mode, setMode] = useState<'tap' | 'speak' | 'snap' | 'type'>('tap');
@@ -42,38 +57,23 @@ export default function SellPage() {
   const { data: itemsData, isLoading: itemsLoading } = useItems('all');
   const { data: custData } = useCustomers();
 
-  const [items, setItems] = useState<any[]>([]);
-  const [customers, setCustomers] = useState<any[]>([]);
+  const items = useMemo(() => itemsData?.items || [], [itemsData]);
+  const customers = useMemo(() => custData?.customers || [], [custData]);
 
-  // Tap Mode State
-  const [selectedTapItem, setSelectedTapItem] = useState<any | null>(null);
-  const [quantity, setQuantity] = useState(1);
-  const [isCredit, setIsCredit] = useState(false);
-  const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null);
-  const [newCustomerName, setNewCustomerName] = useState('');
+  // Tap Mode Multi-Select State (Part 4)
+  const [selectedItemsMap, setSelectedItemsMap] = useState<Map<string, SelectedItemEntry>>(new Map());
+  const [recordSheetOpen, setRecordSheetOpen] = useState(false);
+  const [recordPaymentType, setRecordPaymentType] = useState<'cash' | 'transfer' | 'credit'>('cash');
+  const [recordCustomerId, setRecordCustomerId] = useState<string>('');
+  const [recordCustomerName, setRecordCustomerName] = useState<string>('');
+
+  // Undo Toast state
   const [undoBatchId, setUndoBatchId] = useState<string | null>(null);
   const [undoToastVisible, setUndoToastVisible] = useState(false);
-  const [lastSoldItem, setLastSoldItem] = useState<{ id: string; qty: number } | null>(null);
 
   // Set Price Drawer
   const [priceSheetItem, setPriceSheetItem] = useState<any | null>(null);
   const [priceSheetOpen, setPriceSheetOpen] = useState(false);
-
-  // Negative stock warning
-  const [stockWarningItem, setStockWarningItem] = useState<{ item: any; qty: number; onConfirm: () => void } | null>(null);
-
-  useEffect(() => {
-    if (itemsData?.items) {
-      setItems(itemsData.items);
-      setSelectedTapItem((prev: any) => prev || itemsData.items[0] || null);
-    }
-  }, [itemsData]);
-
-  useEffect(() => {
-    if (custData?.customers) {
-      setCustomers(custData.customers);
-    }
-  }, [custData]);
 
   const loadingItems = !itemsData && itemsLoading;
 
@@ -91,7 +91,6 @@ export default function SellPage() {
   const [confirmRows, setConfirmRows] = useState<any[]>([]);
   const [savingBatch, setSavingBatch] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [successAnimation, setSuccessAnimation] = useState(false);
 
   // Voice recording state
   const [recording, setRecording] = useState(false);
@@ -132,65 +131,144 @@ export default function SellPage() {
     return () => clearInterval(interval);
   }, [recording]);
 
-  // Handle Tap Sale
-  const handleTapSale = async () => {
-    if (!selectedTapItem) return;
+  // Derived selected list & totals
+  const selectedList = useMemo(() => Array.from(selectedItemsMap.values()), [selectedItemsMap]);
+  const totalSelectedUnits = useMemo(
+    () => selectedList.reduce((acc, entry) => acc + entry.quantity, 0),
+    [selectedList]
+  );
+  const totalSelectedAmountMinor = useMemo(
+    () =>
+      selectedList.reduce(
+        (acc, entry) => acc + entry.quantity * (entry.item.sell_price_minor || 0),
+        0
+      ),
+    [selectedList]
+  );
 
-    if (Number(selectedTapItem.current_qty) < quantity) {
-      setStockWarningItem({
-        item: selectedTapItem,
-        qty: quantity,
-        onConfirm: () => executeTapSale(),
-      });
+  // Tap Mode Multi-Select Handlers
+  const handleTileTap = (item: any) => {
+    if (Number(item.current_qty) <= 0) return; // Out of stock items cannot be tapped
+
+    const hasPrice = item.sell_price_minor !== null && item.sell_price_minor > 0;
+    if (!hasPrice) {
+      setPriceSheetItem(item);
+      setPriceSheetOpen(true);
       return;
     }
-    await executeTapSale();
+
+    setSelectedItemsMap((prev) => {
+      const next = new Map(prev);
+      if (next.has(item.id)) {
+        // Tapping check or selected tile header deselects if toggled
+        next.delete(item.id);
+      } else {
+        next.set(item.id, { item, quantity: 1 });
+      }
+      return next;
+    });
   };
 
-  const executeTapSale = async () => {
-    if (!selectedTapItem) return;
+  const handleIncrement = (itemId: string, maxQty: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedItemsMap((prev) => {
+      const next = new Map(prev);
+      const entry = next.get(itemId);
+      if (entry) {
+        if (entry.quantity < maxQty) {
+          next.set(itemId, { ...entry, quantity: entry.quantity + 1 });
+        }
+      }
+      return next;
+    });
+  };
 
-    const unitPriceMinor = selectedTapItem.sell_price_minor || 0;
-    const totalMinor = quantity * unitPriceMinor;
+  const handleDecrement = (itemId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedItemsMap((prev) => {
+      const next = new Map(prev);
+      const entry = next.get(itemId);
+      if (entry) {
+        if (entry.quantity <= 1) {
+          next.delete(itemId); // Minus at 1 deselects
+        } else {
+          next.set(itemId, { ...entry, quantity: entry.quantity - 1 });
+        }
+      }
+      return next;
+    });
+  };
+
+  const handleClearSelection = () => {
+    setSelectedItemsMap(new Map());
+  };
+
+  // Record Sale Commit from Sheet
+  const handleCommitBatchSale = async () => {
+    if (selectedList.length === 0) return;
+    setSavingBatch(true);
+    setErrorMessage(null);
+
     const batchId = crypto.randomUUID();
 
-    const saleEntry = {
-      type: 'sale' as const,
-      itemId: selectedTapItem.id,
-      quantity,
-      unitAmountMinor: unitPriceMinor,
-      totalMinor,
-      paymentType: isCredit ? ('credit' as const) : ('cash' as const),
-      customerId: isCredit ? selectedCustomer?.id : null,
-      customerName: isCredit && !selectedCustomer ? newCustomerName : null,
-      source: 'tap' as const,
-      occurredAt: new Date().toISOString(),
-    };
+    const saleEntries = selectedList.map((entry) => {
+      const unitMinor = entry.item.sell_price_minor || 0;
+      const totMinor = entry.quantity * unitMinor;
 
-    // Optimistically update stock
-    setLastSoldItem({ id: selectedTapItem.id, qty: quantity });
-    setItems((prev) =>
-      prev.map((i) =>
-        i.id === selectedTapItem.id
-          ? { ...i, current_qty: (Number(i.current_qty) || 0) - quantity }
-          : i
-      )
-    );
+      return {
+        type: 'sale' as const,
+        itemId: entry.item.id,
+        quantity: entry.quantity,
+        unitAmountMinor: unitMinor,
+        totalMinor: totMinor,
+        paymentType: recordPaymentType,
+        customerId: recordPaymentType === 'credit' ? recordCustomerId || null : null,
+        customerName: recordPaymentType === 'credit' && !recordCustomerId ? recordCustomerName : null,
+        source: 'tap' as const,
+        occurredAt: new Date().toISOString(),
+      };
+    });
 
-    // Peak-end moment animation & Undo Toast
-    setSuccessAnimation(true);
-    setTimeout(() => setSuccessAnimation(false), 600);
+    // 1. Optimistically decrement stock in TanStack cache
+    queryClient.setQueryData(['items', 'all'], (old: any) => {
+      if (!old || !old.items) return old;
+      const qtyMap = new Map(selectedList.map((e) => [e.item.id, e.quantity]));
+      return {
+        ...old,
+        items: old.items.map((i: any) => {
+          const sold = qtyMap.get(i.id);
+          if (sold) {
+            return { ...i, current_qty: Math.max(0, Number(i.current_qty) - sold) };
+          }
+          return i;
+        }),
+      };
+    });
+
+    // 2. Optimistically update dashboard revenue and count in TanStack cache
+    optimisticUpdateOnSale(queryClient, {
+      totalMinor: totalSelectedAmountMinor,
+      paymentType: recordPaymentType,
+      isCredit: recordPaymentType === 'credit',
+    });
+
+    // Show Undo Toast
     setUndoBatchId(batchId);
     setUndoToastVisible(true);
     setTimeout(() => setUndoToastVisible(false), 8000);
 
-    // Submit online or queue offline
+    // Reset selection and close sheet
+    setSelectedItemsMap(new Map());
+    setRecordSheetOpen(false);
+
+    // Online submission or offline queue
     if (!navigator.onLine) {
       await enqueueOfflineSale({
         batchId,
-        entries: [saleEntry],
+        entries: saleEntries,
         queuedAt: new Date().toISOString(),
       });
+      setSavingBatch(false);
       return;
     }
 
@@ -201,22 +279,24 @@ export default function SellPage() {
           'Content-Type': 'application/json',
           'Idempotency-Key': batchId,
         },
-        body: JSON.stringify({ entries: [saleEntry] }),
+        body: JSON.stringify({ entries: saleEntries }),
       });
-      if (commitRes.ok) {
-        await Promise.all([
-          queryClient.invalidateQueries({ queryKey: ['items'] }),
-          queryClient.invalidateQueries({ queryKey: ['entries'] }),
-          queryClient.invalidateQueries({ queryKey: ['customers'] }),
-        ]);
-        await persistQueryCache(queryClient);
+
+      if (!commitRes.ok) {
+        const errData = await commitRes.json();
+        throw new Error(errData?.error?.message || 'Failed to commit sale batch');
       }
     } catch {
+      // If network fails, enqueue offline
       await enqueueOfflineSale({
         batchId,
-        entries: [saleEntry],
+        entries: saleEntries,
         queuedAt: new Date().toISOString(),
       });
+    } finally {
+      setSavingBatch(false);
+      await invalidateAfterMutation(queryClient, 'commit_sale');
+      await persistQueryCache(queryClient);
     }
   };
 
@@ -226,25 +306,13 @@ export default function SellPage() {
     const batchToVoid = undoBatchId;
     setUndoToastVisible(false);
     setUndoBatchId(null);
-    if (lastSoldItem) {
-      setItems((prev) =>
-        prev.map((i) =>
-          i.id === lastSoldItem.id ? { ...i, current_qty: (Number(i.current_qty) || 0) + lastSoldItem.qty } : i
-        )
-      );
-      setLastSoldItem(null);
-    }
+
     try {
-      const res = await fetch(`/api/batches/${batchToVoid}/void`, { method: 'POST' });
-      if (res.ok) {
-        const itemsRes = await fetch('/api/items');
-        if (itemsRes.ok) {
-          const d = await itemsRes.json();
-          setItems(d.items || []);
-        }
-      }
+      await fetch(`/api/batches/${batchToVoid}/void`, { method: 'POST' });
     } catch (err) {
       console.error('Undo failed:', err);
+    } finally {
+      await invalidateAfterMutation(queryClient, 'void');
     }
   };
 
@@ -253,7 +321,7 @@ export default function SellPage() {
     e.preventDefault();
     if (!structuredItem) return;
 
-    const matched = items.find((i) => i.id === structuredItem);
+    const matched = items.find((i: any) => i.id === structuredItem);
     const unitPriceMinor =
       structuredPrice !== '' ? toMinor(Number(structuredPrice)) : (matched?.sell_price_minor || 0);
     const totalMinor = structuredQty * unitPriceMinor;
@@ -267,25 +335,34 @@ export default function SellPage() {
       unitAmountMinor: unitPriceMinor,
       totalMinor,
       paymentType: structuredPayment,
-      customerId: structuredPayment === 'credit' && selectedCustomer ? selectedCustomer.id : null,
+      customerId: structuredPayment === 'credit' && recordCustomerId ? recordCustomerId : null,
       customerName:
         structuredPayment === 'credit'
-          ? (selectedCustomer ? selectedCustomer.name : structuredCustomer)
+          ? (recordCustomerId ? customers.find((c: any) => c.id === recordCustomerId)?.name : structuredCustomer)
           : null,
       source: 'text' as const,
       occurredAt: new Date().toISOString(),
     };
 
+    // Optimistically update stock and dashboard
     if (matched) {
-      setItems((prev) =>
-        prev.map((i) =>
-          i.id === matched.id ? { ...i, current_qty: (Number(i.current_qty) || 0) - structuredQty } : i
-        )
-      );
+      queryClient.setQueryData(['items', 'all'], (old: any) => {
+        if (!old || !old.items) return old;
+        return {
+          ...old,
+          items: old.items.map((i: any) =>
+            i.id === matched.id ? { ...i, current_qty: Math.max(0, Number(i.current_qty) - structuredQty) } : i
+          ),
+        };
+      });
     }
 
-    setSuccessAnimation(true);
-    setTimeout(() => setSuccessAnimation(false), 600);
+    optimisticUpdateOnSale(queryClient, {
+      totalMinor,
+      paymentType: structuredPayment,
+      isCredit: structuredPayment === 'credit',
+    });
+
     setUndoBatchId(batchId);
     setUndoToastVisible(true);
     setTimeout(() => setUndoToastVisible(false), 8000);
@@ -299,14 +376,12 @@ export default function SellPage() {
         },
         body: JSON.stringify({ entries: [saleEntry] }),
       });
-      if (commitRes.ok) {
-        await Promise.all([
-          queryClient.invalidateQueries({ queryKey: ['items'] }),
-          queryClient.invalidateQueries({ queryKey: ['entries'] }),
-          queryClient.invalidateQueries({ queryKey: ['customers'] }),
-        ]);
-        await persistQueryCache(queryClient);
+
+      if (!commitRes.ok) {
+        const errJson = await commitRes.json();
+        throw new Error(errJson?.error?.message || 'Failed to commit sale');
       }
+
       setStructuredItem('');
       setStructuredQty(1);
       setStructuredPrice('');
@@ -318,6 +393,9 @@ export default function SellPage() {
         entries: [saleEntry],
         queuedAt: new Date().toISOString(),
       });
+    } finally {
+      await invalidateAfterMutation(queryClient, 'commit_sale');
+      await persistQueryCache(queryClient);
     }
   };
 
@@ -463,16 +541,6 @@ export default function SellPage() {
         throw new Error('Failed to commit entries');
       }
 
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['items'] }),
-        queryClient.invalidateQueries({ queryKey: ['entries'] }),
-        queryClient.invalidateQueries({ queryKey: ['customers'] }),
-        queryClient.invalidateQueries({ queryKey: ['checklist'] }),
-      ]);
-      await persistQueryCache(queryClient);
-
-      setSuccessAnimation(true);
-      setTimeout(() => setSuccessAnimation(false), 600);
       setUndoBatchId(batchId);
       setUndoToastVisible(true);
       setTimeout(() => setUndoToastVisible(false), 8000);
@@ -484,17 +552,19 @@ export default function SellPage() {
       setErrorMessage(err instanceof Error ? err.message : 'Failed to save entries.');
     } finally {
       setSavingBatch(false);
+      await invalidateAfterMutation(queryClient, 'commit_sale');
+      await persistQueryCache(queryClient);
     }
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-24 sm:pb-16">
       <div>
         <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text)]">
           Record Sale
         </h1>
         <p className="text-xs text-[var(--text-muted)] mt-1">
-          Log sales quickly with tap, voice, receipt photo, or quick entry
+          Select items to sell, or log with voice, receipt photo, or type
         </p>
       </div>
 
@@ -503,9 +573,9 @@ export default function SellPage() {
         <div
           role="status"
           aria-live="polite"
-          className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 rounded-md bg-text px-4 py-3 text-surface shadow-subtle animate-in slide-in-from-bottom duration-200"
+          className="fixed bottom-24 sm:bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 rounded-md bg-[var(--text)] px-4 py-2.5 text-[var(--bg)] shadow-lg animate-in slide-in-from-bottom duration-200 border border-[var(--border)] text-xs font-medium"
         >
-          <span className="text-sm font-medium">Sale recorded successfully</span>
+          <span>Sale recorded successfully</span>
           <Button size="sm" variant="secondary" onClick={handleUndo} className="h-7 gap-1 text-xs font-semibold">
             <Undo2 className="h-3.5 w-3.5" /> Undo
           </Button>
@@ -513,8 +583,8 @@ export default function SellPage() {
       )}
 
       {/* Mode Selector Tabs with Sliding Pill (Segmented Control) */}
-      <div ref={sellModeRef} className="relative flex rounded-md border border-border bg-surface-2 p-1">
-        <SlidingPill activeId={mode} containerRef={sellModeRef} pillClassName="bg-surface shadow-subtle" />
+      <div ref={sellModeRef} className="relative flex rounded-md border border-[var(--border)] bg-[var(--surface-2)] p-1">
+        <SlidingPill activeId={mode} containerRef={sellModeRef} pillClassName="bg-[var(--surface)] shadow-subtle" />
         {[
           { id: 'tap', label: 'Tap', icon: Pointer },
           { id: 'speak', label: 'Speak', icon: Mic },
@@ -531,8 +601,8 @@ export default function SellPage() {
               onClick={() => handleModeChange(m.id as any)}
               className={`relative z-10 flex flex-1 items-center justify-center gap-1.5 py-2 text-xs sm:text-sm font-semibold rounded-sm transition-colors ${
                 isSelected
-                  ? 'text-brand font-bold'
-                  : 'text-text-muted hover:text-text'
+                  ? 'text-[var(--brand)] font-bold'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text)]'
               }`}
             >
               <Icon className="h-4 w-4" />
@@ -543,7 +613,7 @@ export default function SellPage() {
       </div>
 
       {errorMessage && (
-        <div className="rounded-md bg-danger-soft p-3 text-sm text-danger border border-danger/20 flex items-center gap-2">
+        <div className="rounded-md bg-[var(--danger-soft)] p-3 text-xs text-[var(--danger)] border border-[var(--danger)]/20 flex items-center gap-2">
           <AlertCircle className="h-4 w-4 shrink-0" />
           <span>{errorMessage}</span>
         </div>
@@ -554,59 +624,145 @@ export default function SellPage() {
         <SellSkeleton />
       ) : (
         <>
-          {/* 1. TAP MODE (Default, Fast Path) */}
+          {/* 1. TAP MODE (Multi-Select with Tile Steppers & Bottom Summary Bar - Part 4) */}
           {mode === 'tap' && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                {items.map((item) => {
-                  const isSelected = selectedTapItem?.id === item.id;
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
+                {items.map((item: any) => {
+                  const selection = selectedItemsMap.get(item.id);
+                  const isSelected = !!selection;
                   const hasPrice = item.sell_price_minor !== null && item.sell_price_minor > 0;
+                  const isOutOfStock = Number(item.current_qty) <= 0;
+                  const availableQty = Number(item.current_qty) || 0;
+
+                  if (isOutOfStock) {
+                    return (
+                      <div
+                        key={item.id}
+                        className="rounded-[var(--r-md)] border border-[var(--border)] bg-[var(--surface-2)]/40 p-3 flex flex-col justify-between min-h-[104px] opacity-70 cursor-not-allowed select-none"
+                      >
+                        <div>
+                          <div className="font-semibold text-[var(--text-muted)] line-clamp-1 text-xs">
+                            {item.name}
+                          </div>
+                          <div className="text-[11px] text-[var(--danger)] font-semibold mt-0.5">
+                            Out of stock
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between mt-2 pt-1 border-t border-[var(--border)]/40">
+                          <span className="text-[10px] text-[var(--text-muted)]">
+                            {hasPrice ? formatMoney(item.sell_price_minor) : 'No price'}
+                          </span>
+                          <span className="text-[10px] font-bold text-[var(--warning)] border border-[var(--warning)]/50 px-1.5 py-0.5 rounded">
+                            Out
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  }
 
                   return (
                     <div
                       key={item.id}
-                      onClick={() => {
-                        if (!hasPrice) {
-                          setPriceSheetItem(item);
-                          setPriceSheetOpen(true);
-                        } else {
-                          setSelectedTapItem(item);
+                      role="button"
+                      tabIndex={0}
+                      aria-pressed={isSelected}
+                      onClick={() => handleTileTap(item)}
+                      onKeyDown={(e) => {
+                        if (e.key === ' ' || e.key === 'Enter') {
+                          e.preventDefault();
+                          handleTileTap(item);
                         }
                       }}
-                      className={`cursor-pointer rounded-md border p-3.5 text-left transition-all duration-120 flex flex-col justify-between min-h-[92px] ${
+                      data-item-tile="true"
+                      className={`relative rounded-[var(--r-md)] border p-3 flex flex-col justify-between min-h-[104px] cursor-pointer transition-all hit-slop select-none outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] ${
                         !hasPrice
                           ? 'border-[var(--warning)]/60 bg-[var(--accent-soft)]/20 hover:bg-[var(--accent-soft)]/30'
                           : isSelected
-                          ? 'border-brand bg-brand-soft/30 shadow-subtle ring-1 ring-brand'
-                          : 'border-border bg-surface hover:border-brand/40'
+                          ? 'border-[var(--brand)] bg-[var(--brand-soft)]/20 ring-1 ring-[var(--brand)]'
+                          : 'border-[var(--border)] bg-[var(--surface)] hover:border-[var(--brand)]/50'
                       }`}
                     >
-                      <div>
-                        <div className="font-semibold text-text line-clamp-1 text-sm">{item.name}</div>
-                        <div className="mt-0.5 text-xs text-text-muted tabular-nums">
-                          Stock: {item.current_qty} {item.unit}
+                      {/* Top Header: Name & Selection Indicator */}
+                      <div className="flex items-start justify-between gap-1.5">
+                        <div className="min-w-0 flex-1">
+                          <div className="font-semibold text-xs text-[var(--text)] line-clamp-1">{item.name}</div>
+                          <div className="text-[11px] text-[var(--text-muted)] tabular-nums mt-0.5">
+                            {availableQty} {item.unit} left
+                            {selection && selection.quantity >= availableQty && (
+                              <span className="text-[10px] text-[var(--warning)] ml-1 font-semibold">
+                                (Max)
+                              </span>
+                            )}
+                          </div>
                         </div>
+
+                        {isSelected && (
+                          <div
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleTileTap(item); // Deselect
+                            }}
+                            title="Deselect item"
+                            className="w-5 h-5 rounded-full bg-[var(--brand)] text-[var(--on-brand)] flex items-center justify-center shrink-0 shadow-xs"
+                          >
+                            <Check className="w-3 h-3 stroke-[3]" />
+                          </div>
+                        )}
                       </div>
 
-                      <div className="mt-2">
+                      {/* Bottom Footer: Price & Quantity Stepper */}
+                      <div className="mt-2 flex items-center justify-between pt-1 border-t border-[var(--border)]/40">
                         {hasPrice ? (
-                          <div className="font-bold text-brand text-sm tabular-nums">
+                          <div className="font-bold text-xs text-[var(--brand)] tabular-nums">
                             {formatMoney(item.sell_price_minor)}
                           </div>
                         ) : (
-                          <span className="inline-block text-[10px] font-bold text-[var(--warning)] border border-[var(--warning)]/60 bg-[var(--surface)] px-2 py-0.5 rounded">
+                          <span className="text-[10px] font-bold text-[var(--warning)] border border-[var(--warning)]/60 bg-[var(--surface)] px-1.5 py-0.5 rounded">
                             Set price
                           </span>
+                        )}
+
+                        {isSelected ? (
+                          <div
+                            onClick={(e) => e.stopPropagation()}
+                            className="flex items-center rounded border border-[var(--brand)]/40 bg-[var(--surface)] overflow-hidden shadow-xs"
+                          >
+                            <button
+                              type="button"
+                              onClick={(e) => handleDecrement(item.id, e)}
+                              aria-label={`Decrease ${item.name} quantity`}
+                              className="px-2 py-1 text-[var(--text)] hover:bg-[var(--surface-2)] transition-colors hit-slop"
+                            >
+                              <Minus className="w-3 h-3" />
+                            </button>
+                            <span className="px-1.5 font-bold text-xs text-[var(--text)] tabular-nums min-w-[20px] text-center">
+                              {selection.quantity}
+                            </span>
+                            <button
+                              type="button"
+                              disabled={selection.quantity >= availableQty}
+                              onClick={(e) => handleIncrement(item.id, availableQty, e)}
+                              aria-label={`Increase ${item.name} quantity`}
+                              className="px-2 py-1 text-[var(--text)] hover:bg-[var(--surface-2)] disabled:opacity-30 transition-colors hit-slop"
+                            >
+                              <Plus className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="w-6 h-6 rounded-full bg-[var(--surface-2)] text-[var(--text-muted)] flex items-center justify-center">
+                            <Plus className="w-3.5 h-3.5" />
+                          </div>
                         )}
                       </div>
                     </div>
                   );
                 })}
 
-                {/* Final "+ Add item" tile */}
+                {/* Add Item Tile */}
                 <div
                   onClick={() => window.dispatchEvent(new CustomEvent('tallo-open-add-item'))}
-                  className="cursor-pointer rounded-md border border-dashed border-[var(--border)] hover:border-[var(--brand)] p-3.5 flex flex-col items-center justify-center gap-1.5 min-h-[92px] transition-colors bg-[var(--surface)]/50 hover:bg-[var(--brand-soft)]/20"
+                  className="rounded-[var(--r-md)] border border-dashed border-[var(--border)] hover:border-[var(--brand)] p-3 flex flex-col items-center justify-center gap-1.5 min-h-[104px] cursor-pointer transition-colors bg-[var(--surface)]/50 hover:bg-[var(--brand-soft)]/20"
                 >
                   <div className="h-7 w-7 rounded-full bg-[var(--surface-2)] flex items-center justify-center text-[var(--brand)]">
                     <Plus className="h-4 w-4 stroke-[2.5]" />
@@ -615,216 +771,150 @@ export default function SellPage() {
                 </div>
               </div>
 
-              {selectedTapItem && (
-                <div className="rounded-md border border-border bg-surface p-5 shadow-subtle space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-bold text-text text-base sm:text-lg">{selectedTapItem.name}</h3>
-                      <div className="text-xs text-text-muted tabular-nums">
-                        {formatMoney(selectedTapItem.sell_price_minor)} / {selectedTapItem.unit}
-                      </div>
+              {/* Sticky Bottom Summary Bar (Part 4) */}
+              <div
+                aria-live="polite"
+                className={`fixed bottom-16 sm:bottom-0 left-0 right-0 sm:left-64 z-20 border-t border-[var(--border)] bg-[var(--surface)]/95 backdrop-blur-md px-4 py-3 shadow-lg transition-transform duration-200 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] ${
+                  selectedList.length > 0 ? 'translate-y-0' : 'translate-y-full pointer-events-none'
+                }`}
+              >
+                <div className="max-w-[1000px] mx-auto flex items-center justify-between gap-3">
+                  <div>
+                    <div className="font-display font-bold text-sm sm:text-base text-[var(--text)] tabular-nums">
+                      {totalSelectedUnits} {totalSelectedUnits === 1 ? 'item' : 'items'}, {formatMoney(totalSelectedAmountMinor)}
                     </div>
-
-                    {/* Quantity Stepper */}
-                    <div className="flex items-center border border-border rounded-sm bg-surface-2">
-                      <button
-                        onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                        aria-label="Decrease quantity"
-                        className="hit-slop p-2 hover:bg-border text-text transition-colors"
-                      >
-                        <Minus className="h-4 w-4" />
-                      </button>
-                      <span className="w-10 text-center font-bold text-sm tabular-nums text-text">{quantity}</span>
-                      <button
-                        onClick={() => setQuantity(quantity + 1)}
-                        aria-label="Increase quantity"
-                        className="hit-slop p-2 hover:bg-border text-text transition-colors"
-                      >
-                        <Plus className="h-4 w-4" />
-                      </button>
+                    <div className="text-[11px] text-[var(--text-muted)]">
+                      {selectedList.length} distinct product{selectedList.length === 1 ? '' : 's'} selected
                     </div>
                   </div>
 
-                  {/* Credit Toggle */}
-                  <div className="flex items-center justify-between border-t border-border pt-3">
-                    <span className="text-sm font-medium text-text">Sell on Credit</span>
-                    <input
-                      type="checkbox"
-                      checked={isCredit}
-                      onChange={(e) => setIsCredit(e.target.checked)}
-                      className="h-4 w-4 rounded-sm text-brand accent-brand cursor-pointer"
-                    />
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleClearSelection}
+                      className="text-xs text-[var(--text-muted)] hover:text-[var(--text)]"
+                    >
+                      Clear
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => setRecordSheetOpen(true)}
+                      className="bg-[var(--brand)] text-[var(--on-brand)] hover:bg-[var(--brand-hover)] font-semibold text-xs gap-1.5 shadow-sm px-4 h-9"
+                    >
+                      <ShoppingBag className="w-3.5 h-3.5" />
+                      Record sale
+                    </Button>
                   </div>
-
-                  {isCredit && (
-                    <div className="space-y-2 border-t border-border pt-3">
-                      <label className="text-xs font-semibold text-text-muted uppercase">Customer</label>
-                      <select
-                        onChange={(e) => {
-                          const cust = customers.find((c) => c.id === e.target.value);
-                          setSelectedCustomer(cust || null);
-                        }}
-                        className="w-full rounded-sm border border-border bg-surface p-2 text-sm text-text"
-                      >
-                        <option value="">Select customer or enter new below</option>
-                        {customers.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.name}
-                          </option>
-                        ))}
-                      </select>
-                      {!selectedCustomer && (
-                        <Input
-                          placeholder="Or enter new customer name"
-                          value={newCustomerName}
-                          onChange={(e) => setNewCustomerName(e.target.value)}
-                        />
-                      )}
-                    </div>
-                  )}
-
-                  <Button
-                    size="lg"
-                    onClick={handleTapSale}
-                    className="w-full text-base font-bold tabular-nums"
-                  >
-                    Confirm Sale • {formatMoney((selectedTapItem.sell_price_minor || 0) * quantity)}
-                  </Button>
                 </div>
-              )}
+              </div>
             </div>
           )}
 
-          {/* 2. SPEAK MODE */}
-          {mode === 'speak' && confirmRows.length === 0 && (
-            <div className="rounded-md border border-border bg-surface p-8 text-center shadow-subtle space-y-4">
-              <div
-                className={`mx-auto flex h-20 w-20 items-center justify-center rounded-full transition-transform ${
-                  recording ? 'bg-danger-soft text-danger animate-pulse scale-105' : 'bg-brand-soft text-brand'
-                }`}
-              >
-                <Mic className="h-9 w-9" />
+          {/* 2. SPEAK MODE (Voice AI) */}
+          {mode === 'speak' && (
+            <div className="rounded-md border border-[var(--border)] bg-[var(--surface)] p-6 text-center space-y-4">
+              <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[var(--brand-soft)]/50">
+                <Mic className={`h-10 w-10 text-[var(--brand)] ${recording ? 'animate-pulse' : ''}`} />
               </div>
-
               <div>
-                <h2 className="text-lg font-bold text-text">
-                  {recording ? `Listening… (${voiceTimer}s)` : 'Record voice note'}
-                </h2>
-                <p className="mt-1 text-xs text-text-muted max-w-sm mx-auto">
-                  Say your sales in English, Nigerian Pidgin, or mixed: &quot;Sell 2 Indomie 500 each and 1 peak milk&quot;.
+                <h3 className="font-bold text-sm text-[var(--text)]">Record voice note</h3>
+                <p className="text-xs text-[var(--text-muted)] mt-1">
+                  Speak your sale — e.g. &ldquo;Sold 2 packs of Indomie for ₦400 cash and 1 Gala to Chinedu on credit&rdquo;
                 </p>
+                {recording && (
+                  <p className="text-xs font-semibold text-[var(--brand)] mt-2 tabular-nums">
+                    Recording: {voiceTimer}s
+                  </p>
+                )}
               </div>
-
-              <div className="pt-2">
+              <div className="flex justify-center gap-3">
                 {!recording ? (
-                  <Button size="lg" onClick={startRecording} disabled={parsing} className="gap-2">
-                    <Mic className="h-4 w-4" /> Start Recording (Max 60s)
+                  <Button onClick={startRecording} className="gap-2 text-xs font-semibold">
+                    <Mic className="h-4 w-4" /> Start Recording
                   </Button>
                 ) : (
-                  <Button size="lg" variant="destructive" onClick={stopRecording} className="gap-2">
-                    Stop & Parse Recording
+                  <Button variant="outline" onClick={stopRecording} className="gap-2 text-xs text-[var(--danger)] border-[var(--danger)]">
+                    Stop &amp; Process
                   </Button>
                 )}
               </div>
-
-              {parsing && (
-                <div className="text-xs text-text-muted flex items-center justify-center gap-2 pt-2">
-                  <Loader2 className="h-4 w-4 animate-spin text-brand" />
-                  <span>Listening… → Reading… → Done</span>
-                </div>
-              )}
             </div>
           )}
 
-          {/* 3. SNAP MODE */}
-          {mode === 'snap' && confirmRows.length === 0 && (
-            <div className="rounded-md border border-border bg-surface p-8 text-center shadow-subtle space-y-4">
-              <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-brand-soft text-brand">
-                <Camera className="h-9 w-9" />
+          {/* 3. SNAP MODE (Receipt / Photo AI) */}
+          {mode === 'snap' && (
+            <div className="rounded-md border border-[var(--border)] bg-[var(--surface)] p-6 text-center space-y-4">
+              <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[var(--brand-soft)]/50">
+                <Camera className="h-10 w-10 text-[var(--brand)]" />
               </div>
-
               <div>
-                <h2 className="text-lg font-bold text-text">Photograph receipt or sales book</h2>
-                <p className="mt-1 text-xs text-text-muted max-w-sm mx-auto">
-                  Take a clear picture of handwritten sales notes, notebooks, or receipts.
+                <h3 className="font-bold text-sm text-[var(--text)]">Photograph receipt or sales book</h3>
+                <p className="text-xs text-[var(--text-muted)] mt-1">
+                  Snap a note or ledger — take a photo of your paper sales log or handwritten receipt
                 </p>
               </div>
-
-              <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
-                <label className="inline-flex h-11 cursor-pointer items-center justify-center rounded-md bg-brand px-5 text-sm font-semibold text-on-brand shadow-subtle hover:bg-brand-hover transition-colors">
-                  <Camera className="mr-2 h-4 w-4" /> Take Photo
+              <div className="flex justify-center">
+                <label className="cursor-pointer">
+                  <div className="inline-flex items-center gap-2 rounded-[var(--r-sm)] bg-[var(--brand)] px-4 py-2 text-xs font-semibold text-[var(--on-brand)] shadow-sm hover:bg-[var(--brand-hover)] transition-colors">
+                    <ImageUp className="h-4 w-4" /> Choose or Take Photo
+                  </div>
                   <input
                     type="file"
                     accept="image/*"
                     capture="environment"
-                    onChange={handleImageCapture}
                     className="hidden"
-                  />
-                </label>
-                <label className="inline-flex h-11 cursor-pointer items-center justify-center rounded-md border border-border bg-surface px-5 text-sm font-semibold text-text hover:bg-surface-2 transition-colors">
-                  <ImageUp className="mr-2 h-4 w-4 text-text-muted" /> Upload Image
-                  <input
-                    type="file"
-                    accept="image/*"
                     onChange={handleImageCapture}
-                    className="hidden"
                   />
                 </label>
               </div>
-
-              {parsing && (
-                <div className="text-xs text-text-muted flex items-center justify-center gap-2 pt-2">
-                  <Loader2 className="h-4 w-4 animate-spin text-brand" />
-                  <span>Reading your note with Gemini...</span>
-                </div>
-              )}
             </div>
           )}
 
-          {/* 4. TYPE MODE */}
-          {mode === 'type' && confirmRows.length === 0 && (
+          {/* 4. TYPE MODE (Structured Form with Accessible Selects - Part 3 & 5) */}
+          {mode === 'type' && (
             <div className="space-y-6">
-              {/* Structured Quick Sale Form (Section 8.1) */}
-              <div className="rounded-md border border-border bg-surface p-5 shadow-subtle space-y-4">
+              <div className="rounded-md border border-[var(--border)] bg-[var(--surface)] p-5 shadow-subtle space-y-4">
                 <div>
-                  <h3 className="font-bold text-text text-base">Structured Quick Sale</h3>
-                  <p className="text-xs text-text-muted">Enter a single structured transaction quickly</p>
+                  <h3 className="font-bold text-[var(--text)] text-sm sm:text-base">Structured Quick Sale</h3>
+                  <p className="text-xs text-[var(--text-muted)]">Enter a single transaction with full keyboard support</p>
                 </div>
 
                 <form onSubmit={handleStructuredSale} className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="text-xs font-semibold text-text-muted">Select Item</label>
-                      <select
-                        value={structuredItem}
-                        onChange={(e) => {
-                          const id = e.target.value;
-                          setStructuredItem(id);
-                          const itm = items.find((i) => i.id === id);
-                          if (itm) {
-                            setStructuredPrice(itm.sell_price_minor ? itm.sell_price_minor / 100 : 0);
-                          }
-                        }}
-                        className="mt-1 w-full rounded-sm border border-border bg-surface p-2 text-sm text-text"
-                        required
-                      >
-                        <option value="">Choose item...</option>
-                        {items.map((i) => (
-                          <option key={i.id} value={i.id}>
-                            {i.name} ({formatMoney(i.sell_price_minor)})
-                          </option>
-                        ))}
-                      </select>
+                      <label className="text-xs font-semibold text-[var(--text-muted)]">Select Item</label>
+                      <div className="mt-1">
+                        <Combobox
+                          value={structuredItem}
+                          onChange={(val) => {
+                            setStructuredItem(val);
+                            const itm = items.find((i: any) => i.id === val);
+                            if (itm) {
+                              setStructuredPrice(itm.sell_price_minor ? itm.sell_price_minor / 100 : 0);
+                            }
+                          }}
+                          placeholder="Choose item..."
+                          searchPlaceholder="Search items..."
+                          options={items.map((i: any) => ({
+                            value: i.id,
+                            label: `${i.name} (${formatMoney(i.sell_price_minor)})`,
+                            description: `Stock: ${i.current_qty} ${i.unit}`,
+                          }))}
+                        />
+                      </div>
                     </div>
 
                     <div>
-                      <label className="text-xs font-semibold text-text-muted">Quantity</label>
+                      <label className="text-xs font-semibold text-[var(--text-muted)]">Quantity</label>
                       <Input
                         type="number"
                         min="1"
                         value={structuredQty}
                         onChange={(e) => setStructuredQty(Math.max(1, parseFloat(e.target.value) || 1))}
-                        className="mt-1 tabular-nums"
+                        className="mt-1 tabular-nums h-9 text-xs"
                         required
                       />
                     </div>
@@ -832,63 +922,94 @@ export default function SellPage() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="text-xs font-semibold text-text-muted">Unit Price (NGN)</label>
+                      <label className="text-xs font-semibold text-[var(--text-muted)]">Unit Price (₦)</label>
                       <Input
                         type="number"
                         placeholder="Unit price in NGN"
                         value={structuredPrice}
                         onChange={(e) => setStructuredPrice(e.target.value === '' ? '' : parseFloat(e.target.value) || 0)}
-                        className="mt-1 tabular-nums"
+                        className="mt-1 tabular-nums h-9 text-xs"
                         required
                       />
                     </div>
 
                     <div>
-                      <label className="text-xs font-semibold text-text-muted">Payment Type</label>
-                      <select
-                        value={structuredPayment}
-                        onChange={(e) => setStructuredPayment(e.target.value as any)}
-                        className="mt-1 w-full rounded-sm border border-border bg-surface p-2 text-sm text-text"
-                      >
-                        <option value="cash">Cash</option>
-                        <option value="transfer">Bank Transfer</option>
-                        <option value="credit">Credit Sale</option>
-                      </select>
+                      <label className="text-xs font-semibold text-[var(--text-muted)]">Payment Type</label>
+                      <div className="mt-1">
+                        <Select
+                          value={structuredPayment}
+                          onValueChange={(val) => setStructuredPayment(val as any)}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Payment type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="cash">Cash</SelectItem>
+                            <SelectItem value="transfer">Bank Transfer</SelectItem>
+                            <SelectItem value="credit">Credit Sale</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
                   </div>
 
                   {structuredPayment === 'credit' && (
-                    <div>
-                      <label className="text-xs font-semibold text-text-muted">Customer Name</label>
-                      <Input
-                        placeholder="Enter customer name"
-                        value={structuredCustomer}
-                        onChange={(e) => setStructuredCustomer(e.target.value)}
-                        className="mt-1"
-                        required
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-[var(--text-muted)]">Customer Record</label>
+                      <Combobox
+                        value={recordCustomerId}
+                        onChange={setRecordCustomerId}
+                        placeholder="Select customer..."
+                        searchPlaceholder="Search customers..."
+                        options={customers.map((c: any) => ({
+                          value: c.id,
+                          label: c.name,
+                          description: c.phone || 'Customer',
+                        }))}
                       />
+                      {!recordCustomerId && (
+                        <Input
+                          placeholder="Or type new customer name"
+                          value={structuredCustomer}
+                          onChange={(e) => setStructuredCustomer(e.target.value)}
+                          className="mt-2 text-xs h-9"
+                        />
+                      )}
                     </div>
                   )}
 
-                  <Button type="submit" className="w-full font-bold" disabled={!structuredItem}>
-                    Record Sale
-                  </Button>
+                  <div className="pt-2">
+                    <Button type="submit" className="w-full sm:w-auto text-xs font-semibold gap-1.5 h-9">
+                      <Plus className="h-4 w-4" /> Record Sale
+                    </Button>
+                  </div>
                 </form>
               </div>
 
-              {/* Free Text AI Parse */}
-              <div className="rounded-md border border-border bg-surface p-5 shadow-subtle space-y-3">
-                <h3 className="font-semibold text-text text-sm">Free Text Quick Parse</h3>
-                <p className="text-xs text-text-muted">
-                  Or type naturally: &quot;2 rice 5k credit Mama Ngozi&quot;
-                </p>
+              {/* Free Text AI Parser */}
+              <div className="rounded-md border border-[var(--border)] bg-[var(--surface)] p-5 shadow-subtle space-y-3">
+                <div>
+                  <h3 className="font-bold text-[var(--text)] text-xs sm:text-sm">Natural Language Sale Entry</h3>
+                  <p className="text-xs text-[var(--text-muted)]">Type anything like &ldquo;sold 3 gala and 2 indomie onion for 900 cash&rdquo;</p>
+                </div>
                 <div className="flex gap-2">
                   <Input
-                    placeholder="e.g. 3 Indomie 1500 cash, 1 Peak milk 600"
+                    placeholder="Describe transaction... e.g. 3 Indomie 500 cash"
                     value={freeText}
                     onChange={(e) => setFreeText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleParseText();
+                      }
+                    }}
+                    className="flex-1 text-xs h-9"
                   />
-                  <Button onClick={handleParseText} disabled={parsing || !freeText.trim()} className="font-semibold">
+                  <Button
+                    onClick={handleParseText}
+                    disabled={parsing || !freeText.trim()}
+                    className="text-xs font-semibold h-9"
+                  >
                     {parsing ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Parse'}
                   </Button>
                 </div>
@@ -898,52 +1019,176 @@ export default function SellPage() {
         </>
       )}
 
-      {/* CONFIRM SCREEN / BOTTOM SHEET (For Voice, Snap, and Free Text via Vaul Drawer) */}
-      <Drawer
-        open={confirmRows.length > 0}
-        onOpenChange={(open) => {
-          if (!open) {
-            setConfirmRows([]);
-            setParseResponse(null);
-          }
-        }}
-      >
-        <DrawerContent className="max-w-2xl mx-auto">
-          <DrawerHeader>
-            <DrawerTitle>Confirm Entries</DrawerTitle>
-            {parseResponse?.transcript && (
-              <DrawerDescription className="mt-1 text-xs italic bg-surface-2 p-2 rounded-sm border border-border">
-                &ldquo;{parseResponse.transcript}&rdquo;
-              </DrawerDescription>
-            )}
+      {/* Record Sale Drawer (Multi-select Sheet - Part 4) */}
+      <Drawer open={recordSheetOpen} onOpenChange={setRecordSheetOpen}>
+        <DrawerContent className="max-h-[85vh] bg-[var(--surface)] text-[var(--text)]">
+          <DrawerHeader className="border-b border-[var(--border)] pb-3">
+            <DrawerTitle className="text-base font-bold">Complete Sale</DrawerTitle>
+            <DrawerDescription className="text-xs text-[var(--text-muted)]">
+              Confirm payment method and review line items before committing.
+            </DrawerDescription>
           </DrawerHeader>
 
-          <div className="space-y-2.5 max-h-[50vh] overflow-y-auto">
+          <div className="p-4 overflow-y-auto space-y-4 max-h-[50vh]">
+            {/* Payment Method Selector */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-[var(--text)]">Payment Method</label>
+              <div className="grid grid-cols-3 gap-2">
+                {(['cash', 'transfer', 'credit'] as const).map((pType) => (
+                  <button
+                    key={pType}
+                    type="button"
+                    onClick={() => setRecordPaymentType(pType)}
+                    className={`py-2 px-3 text-xs font-semibold rounded-[var(--r-sm)] border capitalize transition-colors ${
+                      recordPaymentType === pType
+                        ? 'border-[var(--brand)] bg-[var(--brand-soft)]/40 text-[var(--brand)]'
+                        : 'border-[var(--border)] bg-[var(--surface)] text-[var(--text)] hover:bg-[var(--surface-2)]'
+                    }`}
+                  >
+                    {pType}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Credit Customer Selector */}
+            {recordPaymentType === 'credit' && (
+              <div className="space-y-2 border-t border-[var(--border)] pt-3">
+                <label className="text-xs font-semibold text-[var(--text)]">Customer</label>
+                <Combobox
+                  value={recordCustomerId}
+                  onChange={setRecordCustomerId}
+                  placeholder="Select customer..."
+                  searchPlaceholder="Search customers..."
+                  options={customers.map((c: any) => ({
+                    value: c.id,
+                    label: c.name,
+                    description: c.phone || 'Customer',
+                  }))}
+                />
+                {!recordCustomerId && (
+                  <Input
+                    placeholder="Or enter new customer name"
+                    value={recordCustomerName}
+                    onChange={(e) => setRecordCustomerName(e.target.value)}
+                    className="h-9 text-xs"
+                  />
+                )}
+              </div>
+            )}
+
+            {/* Line Items List */}
+            <div className="space-y-2 border-t border-[var(--border)] pt-3">
+              <label className="text-xs font-semibold text-[var(--text)]">Line Items</label>
+              <div className="divide-y divide-[var(--border)] rounded-[var(--r-sm)] border border-[var(--border)] overflow-hidden">
+                {selectedList.map((entry) => {
+                  const lineTotal = entry.quantity * (entry.item.sell_price_minor || 0);
+                  return (
+                    <div key={entry.item.id} className="p-2.5 flex items-center justify-between text-xs bg-[var(--surface)]">
+                      <div className="min-w-0 flex-1 pr-2">
+                        <div className="font-semibold text-[var(--text)] truncate">{entry.item.name}</div>
+                        <div className="text-[11px] text-[var(--text-muted)] mt-0.5 tabular-nums">
+                          {formatMoney(entry.item.sell_price_minor)} each
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3 shrink-0">
+                        <div className="flex items-center border border-[var(--border)] rounded bg-[var(--surface-2)]">
+                          <button
+                            type="button"
+                            onClick={(e) => handleDecrement(entry.item.id, e)}
+                            className="px-2 py-0.5 text-[var(--text)]"
+                          >
+                            <Minus className="w-3 h-3" />
+                          </button>
+                          <span className="px-2 font-bold tabular-nums text-xs">{entry.quantity}</span>
+                          <button
+                            type="button"
+                            disabled={entry.quantity >= (Number(entry.item.current_qty) || 0)}
+                            onClick={(e) => handleIncrement(entry.item.id, Number(entry.item.current_qty) || 0, e)}
+                            className="px-2 py-0.5 text-[var(--text)] disabled:opacity-30"
+                          >
+                            <Plus className="w-3 h-3" />
+                          </button>
+                        </div>
+
+                        <div className="font-bold text-[var(--text)] tabular-nums min-w-[60px] text-right">
+                          {formatMoney(lineTotal)}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Total Row */}
+            <div className="flex items-center justify-between pt-2 border-t border-[var(--border)] font-display">
+              <span className="font-bold text-sm text-[var(--text)]">Total</span>
+              <span className="font-bold text-base text-[var(--brand)] tabular-nums">
+                {formatMoney(totalSelectedAmountMinor)}
+              </span>
+            </div>
+          </div>
+
+          <DrawerFooter className="border-t border-[var(--border)] pt-3 flex flex-row gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setRecordSheetOpen(false)}
+              className="flex-1 text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={savingBatch || selectedList.length === 0}
+              onClick={handleCommitBatchSale}
+              className="flex-1 bg-[var(--brand)] text-[var(--on-brand)] hover:bg-[var(--brand-hover)] text-xs font-semibold gap-1.5"
+            >
+              {savingBatch ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+              Confirm Sale • {formatMoney(totalSelectedAmountMinor)}
+            </Button>
+          </DrawerFooter>
+        </DrawerContent>
+      </Drawer>
+
+      {/* Confirmed AI Review Drawer (Voice / Photo parser results) */}
+      <Drawer open={confirmRows.length > 0} onOpenChange={(open) => !open && setConfirmRows([])}>
+        <DrawerContent className="max-h-[85vh] bg-[var(--surface)] text-[var(--text)]">
+          <DrawerHeader className="border-b border-[var(--border)] pb-3">
+            <DrawerTitle className="text-base font-bold">Confirm Entries</DrawerTitle>
+            <DrawerDescription className="text-xs text-[var(--text-muted)]">
+              Verify detected items and prices before logging.
+            </DrawerDescription>
+          </DrawerHeader>
+
+          <div className="p-4 overflow-y-auto space-y-3 max-h-[50vh]">
             {confirmRows.map((row, idx) => (
-              <div key={idx} className="rounded-sm border border-border p-3 bg-surface-2/40 space-y-2">
+              <div key={idx} className="rounded border border-[var(--border)] p-3 bg-[var(--surface-2)]/30 space-y-2">
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
                   <div>
-                    <label className="text-[11px] font-semibold text-text-muted">Item Matched</label>
-                    <select
-                      value={row.matchedItemId || ''}
-                      onChange={(e) => {
-                        const next = [...confirmRows];
-                        next[idx].matchedItemId = e.target.value || null;
-                        setConfirmRows(next);
-                      }}
-                      className="mt-1 w-full rounded-sm border border-border bg-surface p-1.5 text-xs text-text"
-                    >
-                      <option value="">{row.itemText || 'Select matched item'}</option>
-                      {items.map((i) => (
-                        <option key={i.id} value={i.id}>
-                          {i.name}
-                        </option>
-                      ))}
-                    </select>
+                    <label className="text-[11px] font-semibold text-[var(--text-muted)]">Item</label>
+                    <div className="mt-1">
+                      <Combobox
+                        value={row.matchedItemId || ''}
+                        onChange={(val) => {
+                          const next = [...confirmRows];
+                          next[idx].matchedItemId = val || null;
+                          setConfirmRows(next);
+                        }}
+                        placeholder={row.itemText || 'Select matched item'}
+                        options={items.map((i: any) => ({
+                          value: i.id,
+                          label: i.name,
+                          description: formatMoney(i.sell_price_minor),
+                        }))}
+                      />
+                    </div>
                   </div>
 
                   <div>
-                    <label className="text-[11px] font-semibold text-text-muted">Quantity</label>
+                    <label className="text-[11px] font-semibold text-[var(--text-muted)]">Quantity</label>
                     <Input
                       type="number"
                       value={row.quantity || 1}
@@ -952,12 +1197,12 @@ export default function SellPage() {
                         next[idx].quantity = parseFloat(e.target.value) || 1;
                         setConfirmRows(next);
                       }}
-                      className="mt-1 h-8 text-xs tabular-nums"
+                      className="mt-1 h-9 text-xs tabular-nums"
                     />
                   </div>
 
                   <div>
-                    <label className="text-[11px] font-semibold text-text-muted">Unit Price (NGN)</label>
+                    <label className="text-[11px] font-semibold text-[var(--text-muted)]">Unit Price (₦)</label>
                     <Input
                       type="number"
                       value={row.unitAmount || 0}
@@ -966,40 +1211,47 @@ export default function SellPage() {
                         next[idx].unitAmount = parseFloat(e.target.value) || 0;
                         setConfirmRows(next);
                       }}
-                      className="mt-1 h-8 text-xs tabular-nums"
+                      className="mt-1 h-9 text-xs tabular-nums"
                     />
                   </div>
 
                   <div>
-                    <label className="text-[11px] font-semibold text-text-muted">Payment Type</label>
-                    <select
-                      value={row.paymentType || 'cash'}
-                      onChange={(e) => {
-                        const next = [...confirmRows];
-                        next[idx].paymentType = e.target.value;
-                        setConfirmRows(next);
-                      }}
-                      className="mt-1 w-full rounded-sm border border-border bg-surface p-1.5 text-xs text-text"
-                    >
-                      <option value="cash">Cash</option>
-                      <option value="transfer">Bank Transfer</option>
-                      <option value="credit">Credit</option>
-                    </select>
+                    <label className="text-[11px] font-semibold text-[var(--text-muted)]">Payment</label>
+                    <div className="mt-1">
+                      <Select
+                        value={row.paymentType || 'cash'}
+                        onValueChange={(val) => {
+                          const next = [...confirmRows];
+                          next[idx].paymentType = val;
+                          setConfirmRows(next);
+                        }}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Payment" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="cash">Cash</SelectItem>
+                          <SelectItem value="transfer">Bank Transfer</SelectItem>
+                          <SelectItem value="credit">Credit</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 </div>
 
                 {row.paymentType === 'credit' && (
-                  <div>
-                    <label className="text-[11px] font-semibold text-text-muted">Customer Name</label>
+                  <div className="mt-2">
+                    <label className="text-[11px] font-semibold text-[var(--text-muted)]">Customer Name</label>
                     <Input
-                      placeholder="Customer name"
+                      type="text"
                       value={row.customerName || ''}
                       onChange={(e) => {
                         const next = [...confirmRows];
                         next[idx].customerName = e.target.value;
                         setConfirmRows(next);
                       }}
-                      className="mt-1 h-8 text-xs"
+                      placeholder="Customer name"
+                      className="mt-1 h-9 text-xs"
                     />
                   </div>
                 )}
@@ -1007,89 +1259,32 @@ export default function SellPage() {
             ))}
           </div>
 
-          <DrawerFooter className="flex-row justify-end gap-2.5 pt-3">
+          <DrawerFooter className="border-t border-[var(--border)] pt-3 flex flex-row gap-2">
             <Button
               variant="outline"
-              onClick={() => {
-                setConfirmRows([]);
-                setParseResponse(null);
-              }}
+              onClick={() => setConfirmRows([])}
+              className="flex-1 text-xs"
             >
               Discard
             </Button>
-            <Button onClick={handleSaveConfirmed} disabled={savingBatch} className="font-bold">
-              {savingBatch ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Save All Confirmed
+            <Button
+              disabled={savingBatch}
+              onClick={handleSaveConfirmed}
+              className="flex-1 bg-[var(--brand)] text-[var(--on-brand)] hover:bg-[var(--brand-hover)] text-xs font-semibold"
+            >
+              {savingBatch ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save All Confirmed'}
             </Button>
           </DrawerFooter>
         </DrawerContent>
       </Drawer>
-
-      {/* One-time Peak-end celebration check overlay */}
-      {successAnimation && (
-        <div className="fixed inset-0 pointer-events-none z-50 flex items-center justify-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-brand text-on-brand shadow-subtle animate-in zoom-in duration-200">
-            <Check className="h-8 w-8 stroke-[3]" />
-          </div>
-        </div>
-      )}
-
-      {/* Low/Negative stock confirmation dialog */}
-      {stockWarningItem && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-        >
-          <div className="w-full max-w-sm rounded-[var(--r-lg)] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-lg space-y-4">
-            <div className="flex items-center gap-3 text-[var(--warning)]">
-              <div className="h-10 w-10 rounded-full bg-[var(--warning-soft)] flex items-center justify-center shrink-0">
-                <AlertCircle className="h-5 w-5" />
-              </div>
-              <div>
-                <h3 className="font-display font-bold text-sm text-[var(--text)]">Stock Warning</h3>
-                <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                  Only {stockWarningItem.item.current_qty} {stockWarningItem.item.unit} left in stock.
-                </p>
-              </div>
-            </div>
-            <p className="text-xs text-[var(--text)]">
-              Selling {stockWarningItem.qty} {stockWarningItem.item.unit} will take stock into negative numbers. Sell anyway?
-            </p>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setStockWarningItem(null)}
-                className="text-xs"
-              >
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                className="bg-[var(--danger)] text-white hover:bg-[var(--danger)]/90 text-xs font-semibold"
-                onClick={() => {
-                  const cb = stockWarningItem.onConfirm;
-                  setStockWarningItem(null);
-                  cb();
-                }}
-              >
-                Sell anyway
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Set Price Sheet for unpriced items */}
       <PriceSheet
         item={priceSheetItem}
         open={priceSheetOpen}
         onOpenChange={setPriceSheetOpen}
-        onPriceSet={(minor) => {
-          if (priceSheetItem) {
-            setSelectedTapItem({ ...priceSheetItem, sell_price_minor: minor });
-          }
+        onPriceSet={async () => {
+          await queryClient.invalidateQueries({ queryKey: ['items'] });
         }}
       />
     </div>
