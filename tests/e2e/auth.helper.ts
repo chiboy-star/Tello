@@ -41,15 +41,11 @@ export async function setupTestUserSession(page: Page): Promise<TestUser> {
 }
 
 /**
- * Purges the test user account using DELETE /api/account
+ * Clears session cookies after tests without deleting the persistent test user.
  */
 export async function teardownTestUser(page: Page) {
   try {
-    await page.goto('/settings');
-    await page.waitForSelector('text=Delete Account & Data', { timeout: 5000 });
-    await page.click('button:has-text("Delete Account & Data")');
-    await page.click('button:has-text("Yes, Delete Everything")');
-    await page.waitForURL('/', { timeout: 10000 });
+    await page.context().clearCookies();
   } catch (err) {
     console.warn('Teardown test user warning:', err);
   }
