@@ -49,12 +49,26 @@ export function useCustomer(id: string) {
 }
 
 // --- Entries Queries ---
-export function useEntries(limit: number = 50, itemId?: string) {
+export function useEntries(
+  limitOrOptions: number | { limit?: number; itemId?: string; type?: string; from?: string; to?: string } = 50,
+  itemIdArg?: string
+) {
+  const options =
+    typeof limitOrOptions === 'number'
+      ? { limit: limitOrOptions, itemId: itemIdArg }
+      : limitOrOptions;
+  const limit = options.limit ?? 50;
+  const itemId = options.itemId;
+  const type = options.type;
+
   return useQuery({
-    queryKey: ['entries', { limit, itemId }],
+    queryKey: ['entries', { limit, itemId, type, from: options.from, to: options.to }],
     queryFn: async () => {
       let url = `/api/entries?limit=${limit}`;
       if (itemId) url += `&itemId=${itemId}`;
+      if (type) url += `&type=${type}`;
+      if (options.from) url += `&from=${encodeURIComponent(options.from)}`;
+      if (options.to) url += `&to=${encodeURIComponent(options.to)}`;
       const res = await fetch(url);
       if (!res.ok) throw new Error('Failed to fetch entries');
       return res.json();
@@ -84,16 +98,35 @@ export function useReport(period: 'week' | 'month', periodOffset: number = 0) {
   });
 }
 
+// --- Dashboard Query (Part 1 Unified Source of Truth) ---
+export function useDashboard() {
+  return useQuery({
+    queryKey: ['dashboard'],
+    queryFn: async () => {
+      const res = await fetch('/api/dashboard');
+      if (!res.ok) throw new Error('Failed to fetch dashboard metrics');
+      return res.json();
+    },
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+    refetchOnReconnect: true,
+    staleTime: 5000,
+  });
+}
+
 // --- Checklist Query ---
 export function useChecklist() {
   return useQuery({
     queryKey: ['checklist'],
     queryFn: async () => {
-      const res = await fetch('/api/checklist');
+      const res = await fetch('/api/dashboard');
       if (!res.ok) throw new Error('Failed to fetch checklist');
-      return res.json();
+      const data = await res.json();
+      return data.checklist;
     },
     refetchOnWindowFocus: true,
+    refetchOnMount: true,
+    refetchOnReconnect: true,
     staleTime: 5000,
   });
 }
