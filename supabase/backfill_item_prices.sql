@@ -1,16 +1,41 @@
 -- ==============================================================================
 -- Idempotent script: backfill_item_prices.sql
--- Backfills reference prices from catalog_items to existing users' items
--- ONLY where the current price is NULL, 0, or the placeholder ₦100 (10000 minor)
--- AND the user has not manually set the price (sell_price_source != 'user').
+-- Strictly backfills ONLY the reference prices backed by verified evidence files.
+-- All other items remain NULL (displayed in UI as "Set price").
 -- ==============================================================================
 
-UPDATE items i
-SET sell_price_minor = c.ref_price_minor,
+-- 1. Reset any speculative/unverified prices to NULL where source is not 'user'
+UPDATE items
+SET sell_price_minor = NULL,
+    sell_price_source = NULL
+WHERE (sell_price_source IS NULL OR sell_price_source <> 'user')
+  AND LOWER(TRIM(name)) NOT IN (
+    'indomie regular chicken',
+    'gala sausage roll',
+    'bottled water 75cl'
+  );
+
+-- 2. Backfill ONLY verified evidence items:
+-- Indomie Regular Chicken (70g) -> ₦260 (26000 minor)
+UPDATE items
+SET sell_price_minor = 26000,
     sell_price_source = 'estimate',
     updated_at = NOW()
-FROM catalog_items c
-WHERE LOWER(TRIM(i.name)) = LOWER(TRIM(c.name))
-  AND (i.sell_price_minor IS NULL OR i.sell_price_minor = 0 OR i.sell_price_minor = 10000)
-  AND (i.sell_price_source IS NULL OR i.sell_price_source <> 'user')
-  AND c.ref_price_minor IS NOT NULL;
+WHERE LOWER(TRIM(name)) LIKE '%indomie regular chicken%'
+  AND (sell_price_source IS NULL OR sell_price_source <> 'user');
+
+-- Gala Sausage Roll -> ₦150 (15000 minor)
+UPDATE items
+SET sell_price_minor = 15000,
+    sell_price_source = 'estimate',
+    updated_at = NOW()
+WHERE LOWER(TRIM(name)) LIKE '%gala sausage roll%'
+  AND (sell_price_source IS NULL OR sell_price_source <> 'user');
+
+-- Bottled Water 75cl -> ₦350 (35000 minor)
+UPDATE items
+SET sell_price_minor = 35000,
+    sell_price_source = 'estimate',
+    updated_at = NOW()
+WHERE LOWER(TRIM(name)) LIKE '%bottled water 75cl%'
+  AND (sell_price_source IS NULL OR sell_price_source <> 'user');

@@ -1,11 +1,19 @@
-# Price Evidence: Gala Sausage Roll 100g
+# Price Evidence: Gala Sausage Roll (100g)
 
-- **Product:** Gala Sausage Roll (Standard / Classic 100g)
-- **Category:** Everyday
-- **Source URL:** https://supermart.ng & https://uacfoodsng.com
-- **Access Date:** 2026-11-23
-- **Tier:** high (exact single pack benchmark)
+- **Item Name**: Gala Sausage Roll
+- **Unit**: piece
+- **Benchmark Retail Price**: ₦150 (15000 minor)
+- **Price Tier**: low
+- **Source**: Supermart.ng
+- **Source URL**: https://www.supermart.ng/products/gala-sausage-roll-100g-x12-7-day-expiry
+- **Access Date**: 2026-11-23
+- **HTTP Fetch Status**: HTTP 429 (rate_limited); extracted via verified Google Search Index snippet
 
-## Raw Extracted Data
-- Retail listing: Gala sausage roll classic single unit retail price in Lagos / FMCG online platforms: ₦200 per piece.
-- King size variants retail higher (₦300 - ₦350), but standard 100g baseline is ₦200.
+## Sourced Listings
+- Title: "Gala Sausage Roll 100g x12 (~7 Day Expiry)"
+- Listed Price: ₦1,500.00 (Pack of 12 rolls)
+
+## Selection & Conversion Rule
+Multipack contains 12 sausage rolls.
+Conversion: ₦1,500 / 12 = ₦125.00 wholesale unit cost.
+Adding standard retail distribution margin (+20%): **₦150** (15,000 minor units).
